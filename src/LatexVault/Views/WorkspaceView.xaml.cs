@@ -277,7 +277,18 @@ if (CompileLogBox != null)
         {
             if (!_pdfReady)
             {
-                await PdfWebView.EnsureCoreWebView2Async();
+                // Default user-data folder next to the exe often gets E_ACCESSDENIED.
+                var userData = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LatexVault",
+                    "WebView2UserData");
+                Directory.CreateDirectory(userData);
+
+                var env = await CoreWebView2Environment.CreateAsync(
+                    browserExecutableFolder: null,
+                    userDataFolder: userData);
+                await PdfWebView.EnsureCoreWebView2Async(env);
+
                 PdfWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 PdfWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 PdfWebView.CoreWebView2.Settings.HiddenPdfToolbarItems =
@@ -309,17 +320,27 @@ if (CompileLogBox != null)
                 Vm.Preview.StatusMessage = msg;
                 Vm.ReportStatus(msg);
             }
-            MessageBox.Show(
-                msg + "\n\nInstall Evergreen WebView2 Runtime, then reopen via Desktop LatexVault-EdgePDF.bat",
-                "LatexVault PDF Preview",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+
+            var hint = msg;
+            if (ex.Message.Contains("0x80070005", StringComparison.OrdinalIgnoreCase)
+                || ex.Message.Contains("拒绝访问", StringComparison.Ordinal)
+                || ex.Message.Contains("Access is denied", StringComparison.OrdinalIgnoreCase))
+            {
+                hint += "\n\n这是用户数据目录权限问题。已改为 %LocalAppData%\\LatexVault\\WebView2UserData。\n请关闭后重新打开 LatexVault-EdgePDF.bat。";
+            }
+            else
+            {
+                hint += "\n\n若仍失败，请安装 Evergreen WebView2 Runtime 后重试。";
+            }
+
+            MessageBox.Show(hint, "LatexVault PDF Preview", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         BindPreviewNavigation();
         NavigatePdf();
     }
+
 
     private void BindPreviewNavigation()
     {
