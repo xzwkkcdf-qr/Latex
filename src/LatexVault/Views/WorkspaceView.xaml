@@ -196,24 +196,84 @@
                                Style="{DynamicResource LatexVaultDrawerKickerStyle}"
                                Margin="0"/>
                 </StackPanel>
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock Text="{Binding Preview.Hint}"
-                                   Foreground="{DynamicResource LatexVaultMutedInkBrush}"
-                                   FontSize="12"
-                                   Margin="0,8,0,8"/>
+                <Grid Grid.Row="1">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Preview.IsEmpty}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
                         <ItemsControl ItemsSource="{Binding Preview.Pages}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Image Source="{Binding}"
-                                           Stretch="Uniform"
-                                           Margin="0,0,0,12"
-                                           MaxWidth="480"/>
+                                    <controls:PdfPageView/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Preview.IsEmpty}" Value="True"/>
+                                            <Condition Binding="{Binding Preview.IsLoading}" Value="False"/>
+                                            <Condition Binding="{Binding Compile.IsCompiling}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="No preview"
+                                   FontFamily="{DynamicResource LatexVaultDisplayFont}"
+                                   FontSize="18"
+                                   Foreground="{DynamicResource LatexVaultInkBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding Preview.Hint}"
+                                   FontSize="12"
+                                   Margin="0,8,0,0"
+                                   Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="220"/>
                     </StackPanel>
-                </ScrollViewer>
+
+                    <StackPanel VerticalAlignment="Center" Margin="16,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Compile.IsCompiling}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Preview.IsLoading}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <ProgressBar Height="2"
+                                     IsIndeterminate="True"
+                                     BorderThickness="0"
+                                     Background="{DynamicResource LatexVaultLineBrush}"
+                                     Foreground="{DynamicResource LatexVaultInkBrush}"/>
+                        <TextBlock Text="{Binding Preview.Hint}"
+                                   FontSize="12"
+                                   Margin="0,12,0,0"
+                                   Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Grid>
 

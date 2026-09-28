@@ -67,6 +67,12 @@ public partial class CompileViewModel : ObservableObject
 
         IsCompiling = true;
         StatusText = "Compiling…";
+        if (_preview != null)
+        {
+            _preview.Clear();
+            _preview.Hint = "Compiling…";
+        }
+
         try
         {
             var result = await _compile.CompileAsync(SelectedEngine, tab.FilePath, settings);
@@ -77,13 +83,15 @@ public partial class CompileViewModel : ObservableObject
             {
                 StatusText = "OK";
                 IsLogOpen = false;
-                if (!string.IsNullOrWhiteSpace(result.PdfPath))
-                    _preview?.LoadPdf(result.PdfPath!);
+                if (!string.IsNullOrWhiteSpace(result.PdfPath) && _preview != null)
+                    await _preview.LoadPdf(result.PdfPath);
             }
             else
             {
                 StatusText = result.ErrorHint ?? "Failed";
                 IsLogOpen = true;
+                if (_preview != null)
+                    _preview.Hint = "Compile failed — see log";
             }
 
             _onCompiled?.Invoke();

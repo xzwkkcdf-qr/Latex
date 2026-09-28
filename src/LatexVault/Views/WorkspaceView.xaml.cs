@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,13 +13,76 @@ public partial class WorkspaceView : UserControl
 {
     private Point _dragStart;
     private LibraryNode? _dragNode;
+    private ShellViewModel? _subscribedVm;
 
     public WorkspaceView()
     {
         InitializeComponent();
+        DataContextChanged += WorkspaceView_DataContextChanged;
+        Loaded += (_, _) => ApplyPreviewColumn();
     }
 
     private ShellViewModel? Vm => DataContext as ShellViewModel;
+
+    private void WorkspaceView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (_subscribedVm != null)
+        {
+            _subscribedVm.Preview.PropertyChanged -= Preview_PropertyChanged;
+            _subscribedVm.PropertyChanged -= Shell_PropertyChanged;
+            _subscribedVm = null;
+        }
+
+        if (e.NewValue is ShellViewModel vm)
+        {
+            _subscribedVm = vm;
+            vm.Preview.PropertyChanged += Preview_PropertyChanged;
+            vm.PropertyChanged += Shell_PropertyChanged;
+            ApplyPreviewColumn();
+            ApplyLibraryColumn();
+        }
+    }
+
+    private void Preview_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PreviewViewModel.IsVisible) or null)
+            ApplyPreviewColumn();
+    }
+
+    private void Shell_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ShellViewModel.PreviewPaneWidth) or nameof(ShellViewModel.LibraryPaneWidth) or null)
+        {
+            ApplyPreviewColumn();
+            ApplyLibraryColumn();
+        }
+    }
+
+    private void ApplyLibraryColumn()
+    {
+        if (Vm == null) return;
+        var w = Vm.LibraryPaneWidth > 0 ? Vm.LibraryPaneWidth : 280;
+        LibraryCol.Width = new GridLength(w);
+    }
+
+    private void ApplyPreviewColumn()
+    {
+        if (Vm == null) return;
+
+        if (Vm.Preview.IsVisible)
+        {
+            var w = Vm.PreviewPaneWidth > 0 ? Vm.PreviewPaneWidth : 360;
+            PreviewCol.MinWidth = 160;
+            PreviewCol.Width = new GridLength(w);
+        }
+        else
+        {
+            if (PreviewCol.Width.IsAbsolute && PreviewCol.Width.Value > 40)
+                Vm.PreviewPaneWidth = PreviewCol.Width.Value;
+            PreviewCol.MinWidth = 0;
+            PreviewCol.Width = new GridLength(0);
+        }
+    }
 
     private void LibraryTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
