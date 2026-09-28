@@ -43,7 +43,11 @@
                           Margin="0,0,8,0"/>
                 <Button Content="Toggle Preview"
                         Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                        Command="{Binding TogglePreviewCommand}"/>
+                        Command="{Binding TogglePreviewCommand}"
+                        Margin="0,0,8,0"/>
+                <Button Content="Settings"
+                        Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                        Command="{Binding OpenSettingsCommand}"/>
             </StackPanel>
         </Border>
 

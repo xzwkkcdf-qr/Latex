@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using LatexVault.Models;
 
@@ -9,6 +10,8 @@ public sealed class SettingsStore
     {
         WriteIndented = true
     };
+
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private readonly string _filePath;
 
@@ -34,7 +37,6 @@ public sealed class SettingsStore
     public void Save(AppSettings settings)
     {
         var json = JsonSerializer.Serialize(settings, JsonOptions);
-        File.WriteAllText(_filePath, json);
+        File.WriteAllText(_filePath, json, Utf8NoBom);
     }
 }
-

@@ -58,6 +58,15 @@ public partial class WorkspaceView : UserControl
         }
     }
 
+
+    public void CapturePaneWidths()
+    {
+        if (Vm == null) return;
+        if (LibraryCol.Width.IsAbsolute && LibraryCol.Width.Value > 0)
+            Vm.LibraryPaneWidth = LibraryCol.Width.Value;
+        if (Vm.Preview.IsVisible && PreviewCol.Width.IsAbsolute && PreviewCol.Width.Value > 40)
+            Vm.PreviewPaneWidth = PreviewCol.Width.Value;
+    }
     private void ApplyLibraryColumn()
     {
         if (Vm == null) return;

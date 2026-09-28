@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using LatexVault.ViewModels;
 
@@ -8,10 +9,37 @@ public partial class ShellWindow : Window
     public ShellWindow()
     {
         InitializeComponent();
-        DataContext = new ShellViewModel();
+        var vm = new ShellViewModel();
+        DataContext = vm;
         WorkspaceHost.Content = new WorkspaceView();
         StateChanged += (_, _) => UpdateMaximizeGlyph();
+        Loaded += ShellWindow_Loaded;
+        Closing += ShellWindow_Closing;
         UpdateMaximizeGlyph();
+        vm.ApplyWindowGeometry(this);
+    }
+
+    private ShellViewModel? Vm => DataContext as ShellViewModel;
+
+    private void ShellWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        Vm?.EnsureLibraryOnStartup();
+    }
+
+    private void ShellWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (Vm == null) return;
+
+        if (WorkspaceHost.Content is WorkspaceView workspace)
+            workspace.CapturePaneWidths();
+
+        if (!Vm.ConfirmCloseSession())
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        Vm.PersistSession(this);
     }
 
     private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e)

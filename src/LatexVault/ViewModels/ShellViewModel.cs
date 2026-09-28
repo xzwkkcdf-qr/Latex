@@ -11,6 +11,7 @@ namespace LatexVault.ViewModels;
 public partial class ShellViewModel : ObservableObject
 {
     private readonly SettingsStore _settingsStore = SettingsStore.ForAppData();
+    private bool _firstRunChecked;
 
     [ObservableProperty] private AppSettings _settings = new();
     [ObservableProperty] private string _statusPath = "";
@@ -41,6 +42,18 @@ public partial class ShellViewModel : ObservableObject
         }
     }
 
+    public void EnsureLibraryOnStartup()
+    {
+        if (_firstRunChecked) return;
+        _firstRunChecked = true;
+
+        if (!string.IsNullOrWhiteSpace(Settings.LibraryRoot) &&
+            Directory.Exists(Settings.LibraryRoot))
+            return;
+
+        OpenLibrary();
+    }
+
     [RelayCommand]
     private void OpenLibrary()
     {
@@ -64,6 +77,8 @@ public partial class ShellViewModel : ObservableObject
     {
         Editor.SaveActive();
         PersistLayout();
+        if (Settings.AutoCompileOnSave && Compile.CompileCommand.CanExecute(null))
+            _ = Compile.CompileCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]
@@ -72,6 +87,34 @@ public partial class ShellViewModel : ObservableObject
         Preview.IsVisible = !Preview.IsVisible;
         Settings.PreviewVisible = Preview.IsVisible;
         PersistLayout();
+    }
+
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        var updated = SettingsDialog.ShowAndGet(Settings);
+        if (updated == null)
+            return;
+
+        var rootChanged = !string.Equals(
+            Settings.LibraryRoot, updated.LibraryRoot, StringComparison.OrdinalIgnoreCase);
+
+        Settings.LibraryRoot = updated.LibraryRoot;
+        Settings.LatexMkPath = updated.LatexMkPath;
+        Settings.XeLatexPath = updated.XeLatexPath;
+        Settings.PdfLatexPath = updated.PdfLatexPath;
+        Settings.AutoCompileOnSave = updated.AutoCompileOnSave;
+        _settingsStore.Save(Settings);
+
+        if (rootChanged &&
+            !string.IsNullOrWhiteSpace(Settings.LibraryRoot) &&
+            Directory.Exists(Settings.LibraryRoot))
+        {
+            Library.Load(Settings.LibraryRoot);
+            StatusPath = Settings.LibraryRoot;
+        }
+
+        StatusMessage = "Settings saved.";
     }
 
     [RelayCommand]
@@ -181,12 +224,13 @@ public partial class ShellViewModel : ObservableObject
             return;
         }
 
-        var confirm = MessageBox.Show(
-            $"Delete '{node.Name}'?",
+        var confirm = ConfirmDialog.Show(
             "Confirm delete",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.OK)
+            $"Delete '{node.Name}'? This cannot be undone.",
+            primaryText: "Delete",
+            secondaryText: null,
+            cancelText: "Cancel");
+        if (confirm != ConfirmResult.Primary)
             return;
 
         try
@@ -215,6 +259,34 @@ public partial class ShellViewModel : ObservableObject
     }
 
     public void ReportStatus(string message) => StatusMessage = message;
+
+    public bool ConfirmCloseSession() => Editor.ConfirmCloseAll();
+
+    public void PersistSession(Window window)
+    {
+        Settings.LibraryPaneWidth = LibraryPaneWidth;
+        Settings.PreviewPaneWidth = PreviewPaneWidth;
+        Settings.PreviewVisible = Preview.IsVisible;
+        Settings.DefaultEngine = Compile.SelectedEngine;
+        Settings.WindowMaximized = window.WindowState == WindowState.Maximized;
+        if (window.WindowState == WindowState.Normal)
+        {
+            Settings.WindowWidth = window.Width;
+            Settings.WindowHeight = window.Height;
+        }
+        _settingsStore.Save(Settings);
+    }
+
+    public void ApplyWindowGeometry(Window window)
+    {
+        if (Settings.WindowWidth > 400)
+            window.Width = Settings.WindowWidth;
+        if (Settings.WindowHeight > 300)
+            window.Height = Settings.WindowHeight;
+        window.WindowState = Settings.WindowMaximized
+            ? WindowState.Maximized
+            : WindowState.Normal;
+    }
 
     private void PersistLayout()
     {

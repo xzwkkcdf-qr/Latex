@@ -1,0 +1,71 @@
+<Window x:Class="LatexVault.Views.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings"
+        Width="520"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        Background="{DynamicResource LatexVaultPaperBrush}"
+        FontFamily="{DynamicResource LatexVaultBodyFont}"
+        Foreground="{DynamicResource LatexVaultInkBrush}"
+        ShowInTaskbar="False">
+    <Border BorderBrush="{DynamicResource LatexVaultInkBrush}" BorderThickness="1" Padding="24,20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <Border Width="1" Height="14" VerticalAlignment="Center"
+                        Background="{DynamicResource LatexVaultInkBrush}" Margin="0,0,10,0"/>
+                <TextBlock FontFamily="{DynamicResource LatexVaultDisplayFont}"
+                           FontSize="18"
+                           Text="Settings"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+                <TextBlock Text="LIBRARY ROOT" Style="{DynamicResource LatexVaultDrawerKickerStyle}" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="LibraryRootBox"
+                             Style="{DynamicResource LatexVaultTextBoxStyle}"/>
+                    <Button Grid.Column="1"
+                            Content="Browse"
+                            Margin="8,0,0,0"
+                            Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                            Click="BrowseLibrary_Click"/>
+                </Grid>
+
+                <TextBlock Text="ENGINE PATHS" Style="{DynamicResource LatexVaultDrawerKickerStyle}" Margin="0,0,0,6"/>
+                <TextBlock Text="latexmk" FontSize="11" Foreground="{DynamicResource LatexVaultMutedInkBrush}" Margin="0,0,0,4"/>
+                <TextBox x:Name="LatexMkPathBox" Style="{DynamicResource LatexVaultTextBoxStyle}" Margin="0,0,0,8"/>
+                <TextBlock Text="xelatex" FontSize="11" Foreground="{DynamicResource LatexVaultMutedInkBrush}" Margin="0,0,0,4"/>
+                <TextBox x:Name="XeLatexPathBox" Style="{DynamicResource LatexVaultTextBoxStyle}" Margin="0,0,0,8"/>
+                <TextBlock Text="pdflatex" FontSize="11" Foreground="{DynamicResource LatexVaultMutedInkBrush}" Margin="0,0,0,4"/>
+                <TextBox x:Name="PdfLatexPathBox" Style="{DynamicResource LatexVaultTextBoxStyle}" Margin="0,0,0,16"/>
+
+                <CheckBox x:Name="AutoCompileBox"
+                          Content="Auto-compile on save"
+                          Margin="0,0,0,8"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Content="Save"
+                        Style="{DynamicResource LatexVaultPrimaryActionStyle}"
+                        Margin="0,0,8,0"
+                        Click="Save_Click"/>
+                <Button Content="Cancel"
+                        Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                        IsCancel="True"
+                        Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

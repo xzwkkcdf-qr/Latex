@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Text;
-using System.Windows;
-using CommunityToolkit.Mvvm.ComponentModel;
 using LatexVault.Models;
+using LatexVault.Views;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace LatexVault.ViewModels;
 
@@ -13,6 +13,8 @@ public partial class EditorTabsViewModel : ObservableObject
     [ObservableProperty] private DocumentTab? _selectedTab;
 
     public ObservableCollection<DocumentTab> Tabs { get; } = new();
+
+    public bool AnyDirty => Tabs.Any(t => t.IsDirty);
 
     public void OpenFile(string path)
     {
@@ -47,6 +49,15 @@ public partial class EditorTabsViewModel : ObservableObject
         SelectedTab.IsMissing = false;
     }
 
+    public void SaveTab(DocumentTab tab)
+    {
+        if (string.IsNullOrWhiteSpace(tab.FilePath))
+            return;
+        File.WriteAllText(tab.FilePath, tab.Text ?? "", Utf8NoBom);
+        tab.IsDirty = false;
+        tab.IsMissing = false;
+    }
+
     public void CloseTab(DocumentTab? tab = null)
     {
         tab ??= SelectedTab;
@@ -55,26 +66,40 @@ public partial class EditorTabsViewModel : ObservableObject
 
         if (tab.IsDirty)
         {
-            var result = MessageBox.Show(
-                $"Save changes to {tab.Title} before closing?",
+            var result = ConfirmDialog.Show(
                 "Unsaved changes",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
-            if (result == MessageBoxResult.Cancel)
+                $"Save changes to {tab.Title} before closing?",
+                primaryText: "Save",
+                secondaryText: "Don't Save",
+                cancelText: "Cancel");
+            if (result == ConfirmResult.Cancel)
                 return;
-            if (result == MessageBoxResult.Yes)
-            {
-                if (string.IsNullOrWhiteSpace(tab.FilePath))
-                    return;
-                File.WriteAllText(tab.FilePath, tab.Text ?? "", Utf8NoBom);
-                tab.IsDirty = false;
-            }
+            if (result == ConfirmResult.Primary)
+                SaveTab(tab);
         }
 
         var index = Tabs.IndexOf(tab);
         Tabs.Remove(tab);
         if (SelectedTab == tab)
             SelectedTab = Tabs.Count == 0 ? null : Tabs[Math.Clamp(index, 0, Tabs.Count - 1)];
+    }
+
+    public bool ConfirmCloseAll()
+    {
+        foreach (var tab in Tabs.Where(t => t.IsDirty).ToList())
+        {
+            var result = ConfirmDialog.Show(
+                "Unsaved changes",
+                $"Save changes to {tab.Title} before closing?",
+                primaryText: "Save",
+                secondaryText: "Don't Save",
+                cancelText: "Cancel");
+            if (result == ConfirmResult.Cancel)
+                return false;
+            if (result == ConfirmResult.Primary)
+                SaveTab(tab);
+        }
+        return true;
     }
 
     public void MarkMissingFiles()
