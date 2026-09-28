@@ -89,7 +89,7 @@ public partial class PreviewViewModel : ObservableObject
                 IsEmpty = false;
                 Hint = "";
                 IsLoading = false;
-                StatusMessage = "Edge PDF";
+                StatusMessage = "Edge PDF viewer";
                 OnPropertyChanged(nameof(HasPages));
                 ViewerNavigateRequested?.Invoke();
             });

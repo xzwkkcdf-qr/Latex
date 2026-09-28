@@ -1,7 +1,7 @@
 <Window x:Class="LatexVault.Views.ShellWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="LatexVault"
+        Title="LatexVault (Edge PDF)"
         Width="1280"
         Height="900"
         MinWidth="1000"

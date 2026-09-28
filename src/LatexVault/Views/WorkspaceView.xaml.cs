@@ -20,11 +20,11 @@ public partial class WorkspaceView : UserControl
     {
         InitializeComponent();
         DataContextChanged += WorkspaceView_DataContextChanged;
-        Loaded += async (_, _) =>
+        Loaded += (_, _) =>
         {
             ApplyPreviewColumn();
             WireHandlers();
-            await WirePdfViewerAsync();
+            _ = EnsurePdfViewerAsync();
         };
     }
 
@@ -265,62 +265,88 @@ if (CompileLogBox != null)
     }
 
 
-    private PreviewViewModel? _previewVm;
 
-    private async Task WirePdfViewerAsync()
+
+    private PreviewViewModel? _previewVm;
+    private Action? _pdfNavHandler;
+    private bool _pdfReady;
+
+    private async Task EnsurePdfViewerAsync()
     {
         try
         {
-            await PdfWebView.EnsureCoreWebView2Async();
-            PdfWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-            PdfWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-            PdfWebView.CoreWebView2.Settings.HiddenPdfToolbarItems =
-                CoreWebView2PdfToolbarItems.Save
-                | CoreWebView2PdfToolbarItems.SaveAs
-                | CoreWebView2PdfToolbarItems.Print
-                | CoreWebView2PdfToolbarItems.MoreSettings;
+            if (!_pdfReady)
+            {
+                await PdfWebView.EnsureCoreWebView2Async();
+                PdfWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                PdfWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                PdfWebView.CoreWebView2.Settings.HiddenPdfToolbarItems =
+                    CoreWebView2PdfToolbarItems.Save
+                    | CoreWebView2PdfToolbarItems.SaveAs
+                    | CoreWebView2PdfToolbarItems.Print
+                    | CoreWebView2PdfToolbarItems.MoreSettings;
+                _pdfReady = true;
+            }
         }
         catch (Exception ex)
         {
             if (Vm != null)
-                Vm.Preview.Hint = "WebView2 missing — install Edge WebView2 Runtime. " + ex.Message;
+                Vm.Preview.Hint = "WebView2 Runtime missing. Install Evergreen WebView2. " + ex.Message;
             return;
         }
 
-        void OnNav() => _ = NavigatePdfAsync();
-
-        if (_previewVm != null)
-            _previewVm.ViewerNavigateRequested -= OnNav;
-        _previewVm = Vm?.Preview;
-        if (_previewVm != null)
-            _previewVm.ViewerNavigateRequested += OnNav;
-
-        await NavigatePdfAsync();
+        BindPreviewNavigation();
+        NavigatePdf();
     }
 
-    private Task NavigatePdfAsync()
+    private void BindPreviewNavigation()
     {
-        if (PdfWebView.CoreWebView2 == null)
-            return Task.CompletedTask;
+        if (_previewVm != null && _pdfNavHandler != null)
+        {
+            _previewVm.ViewerNavigateRequested -= _pdfNavHandler;
+            _previewVm.PropertyChanged -= Preview_ViewerUriChanged;
+        }
 
-        var uri = Vm?.Preview.ViewerUri;
+        _previewVm = Vm?.Preview;
+        if (_previewVm == null)
+            return;
+
+        _pdfNavHandler = NavigatePdf;
+        _previewVm.ViewerNavigateRequested += _pdfNavHandler;
+        _previewVm.PropertyChanged += Preview_ViewerUriChanged;
+    }
+
+    private void Preview_ViewerUriChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PreviewViewModel.ViewerUri) or nameof(PreviewViewModel.Zoom) or "ViewerUri" or "Zoom")
+            NavigatePdf();
+    }
+
+    private void NavigatePdf()
+    {
+        if (!_pdfReady || PdfWebView.CoreWebView2 == null)
+            return;
+
+        var preview = Vm?.Preview;
+        var uri = preview?.ViewerUri;
         if (string.IsNullOrWhiteSpace(uri))
         {
             PdfWebView.CoreWebView2.Navigate("about:blank");
-            return Task.CompletedTask;
+            return;
         }
 
         try
         {
-            PdfWebView.ZoomFactor = Math.Clamp(Vm!.Preview.Zoom, 0.3, 4.0);
+            PdfWebView.ZoomFactor = Math.Clamp(preview!.Zoom, 0.3, 4.0);
+            // Force reload even if path same (compile overwrite): bump via navigation to blank then file.
+            PdfWebView.CoreWebView2.Navigate("about:blank");
             PdfWebView.CoreWebView2.Navigate(uri);
         }
         catch (Exception ex)
         {
-            Vm!.Preview.Hint = "PDF navigate failed: " + ex.Message;
+            if (preview != null)
+                preview.Hint = "PDF navigate failed: " + ex.Message;
         }
-
-        return Task.CompletedTask;
     }
 
     public void PreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
