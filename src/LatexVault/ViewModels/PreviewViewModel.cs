@@ -12,6 +12,7 @@ public partial class PreviewViewModel : ObservableObject
     private int _loadGeneration;
     private string? _lastPdfPath;
     private string? _stagedViewerPath;
+    private int _navEpoch;
 
     [ObservableProperty] private bool _isVisible = true;
     [ObservableProperty] private bool _isLoading;
@@ -24,13 +25,11 @@ public partial class PreviewViewModel : ObservableObject
 
     public bool HasDocument => !string.IsNullOrWhiteSpace(_lastPdfPath);
 
-    public event Action? ViewerNavigateRequested;
-
     partial void OnZoomChanged(double value)
     {
         ZoomText = $"{Math.Round(value * 100)}%";
-        if (!string.IsNullOrWhiteSpace(ViewerUri) || !string.IsNullOrWhiteSpace(_lastPdfPath))
-            ViewerNavigateRequested?.Invoke();
+        if (!string.IsNullOrWhiteSpace(_stagedViewerPath) && File.Exists(_stagedViewerPath))
+            ViewerUri = BuildViewerUri(_stagedViewerPath, value);
     }
 
     public void Clear()
@@ -44,7 +43,6 @@ public partial class PreviewViewModel : ObservableObject
         Hint = "No preview — compile to refresh";
         StatusMessage = "";
         OnPropertyChanged(nameof(HasDocument));
-        ViewerNavigateRequested?.Invoke();
     }
 
     public async Task LoadPdf(string pdfPath)
@@ -77,7 +75,6 @@ public partial class PreviewViewModel : ObservableObject
                 return;
             }
 
-            var uri = ToFileUri(staged) + $"#zoom={Math.Round(Zoom * 100)}";
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (gen != _loadGeneration)
@@ -89,13 +86,13 @@ public partial class PreviewViewModel : ObservableObject
                 ClearStagedViewer();
                 _stagedViewerPath = staged;
                 _lastPdfPath = pdfPath;
-                ViewerUri = uri;
+                // Setting ViewerUri is the single signal for the view to Navigate (once).
+                ViewerUri = BuildViewerUri(staged, Zoom);
                 IsEmpty = false;
                 Hint = "";
                 IsLoading = false;
                 StatusMessage = "WebView2";
                 OnPropertyChanged(nameof(HasDocument));
-                ViewerNavigateRequested?.Invoke();
             });
         }
         catch (Exception ex)
@@ -110,12 +107,19 @@ public partial class PreviewViewModel : ObservableObject
         }
     }
 
+    private string BuildViewerUri(string path, double zoom)
+    {
+        _navEpoch++;
+        // Cache-bust so recompile reloads; Edge PDF uses view=FitH; app zoom via WebView2.ZoomFactor.
+        return ToFileUri(path) + $"#view=FitH&nav={_navEpoch}&zoom={Math.Round(zoom * 100)}";
+    }
+
     public static string ToFileUri(string path)
     {
         var full = Path.GetFullPath(path).Replace('\\', '/');
         if (full.Length >= 2 && full[1] == ':')
-            return "file:///" + full;
-        return "file://" + full;
+            return "file:///" + full.Replace(" ", "%20");
+        return "file://" + full.Replace(" ", "%20");
     }
 
     [RelayCommand] private void ZoomIn() => SetZoom(Zoom * 1.25);

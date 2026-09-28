@@ -324,18 +324,13 @@ if (CompileLogBox != null)
 
     private void BindPreviewNavigation()
     {
-        if (_previewVm != null && _pdfNavHandler != null)
-        {
-            _previewVm.ViewerNavigateRequested -= _pdfNavHandler;
+        if (_previewVm != null)
             _previewVm.PropertyChanged -= Preview_ViewerUriChanged;
-        }
 
         _previewVm = Vm?.Preview;
         if (_previewVm == null)
             return;
 
-        _pdfNavHandler = NavigatePdf;
-        _previewVm.ViewerNavigateRequested += _pdfNavHandler;
         _previewVm.PropertyChanged += Preview_ViewerUriChanged;
     }
 
@@ -360,17 +355,18 @@ if (CompileLogBox != null)
 
         try
         {
-            PdfWebView.ZoomFactor = Math.Clamp(preview!.Zoom, 0.3, 4.0);
-            // Force reload even if path same (compile overwrite): bump via navigation to blank then file.
-            PdfWebView.CoreWebView2.Navigate("about:blank");
+            PdfWebView.ZoomFactor = Math.Clamp(preview!.Zoom, 0.25, 4.0);
+            // One navigation only — do NOT bounce through about:blank (leaves blank pane).
             PdfWebView.CoreWebView2.Navigate(uri);
+            preview.StatusMessage = "WebView2";
         }
         catch (Exception ex)
         {
-            if (preview != null)
-                preview.Hint = "PDF navigate failed: " + ex.Message;
+            preview!.Hint = "PDF navigate failed: " + ex.Message;
+            preview.StatusMessage = preview.Hint;
         }
     }
+
 
     public void PreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
