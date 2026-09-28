@@ -20,7 +20,14 @@ public sealed class PdfPreviewService : IDisposable
         return dest;
     }
 
-    public IReadOnlyList<BitmapSource> RenderPages(string pdfPath, int dpi = 120)
+    /// <summary>
+    /// Render DPI for a zoom factor. Bitmap metadata stays 96 DPI so WPF DIP size
+    /// grows with pixel count (= sharp zoom, not ScaleTransform stretch).
+    /// </summary>
+    public static int DpiForZoom(double zoom, int baseDpi = 96) =>
+        (int)Math.Clamp(Math.Round(baseDpi * zoom), 72, 576);
+
+    public IReadOnlyList<BitmapSource> RenderPages(string pdfPath, int dpi = 96)
     {
         ClearStaged();
         _stagedPath = StageForPreview(pdfPath);
@@ -35,8 +42,9 @@ public sealed class PdfPreviewService : IDisposable
             var w = page.GetPageWidth();
             var h = page.GetPageHeight();
             var raw = page.GetImage(); // BGRA
+            // Stamp as 96 DPI: 1 device-independent pixel per bitmap pixel → zoom = more pixels.
             var bmp = BitmapSource.Create(
-                w, h, dpi, dpi,
+                w, h, 96, 96,
                 PixelFormats.Bgra32, null, raw, w * 4);
             bmp.Freeze();
             list.Add(bmp);

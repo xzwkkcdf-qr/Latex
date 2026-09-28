@@ -226,10 +226,6 @@
                             </Style>
                         </ScrollViewer.Style>
                         <ItemsControl ItemsSource="{Binding Preview.Pages}">
-                            <ItemsControl.LayoutTransform>
-                                <ScaleTransform ScaleX="{Binding Preview.Zoom}"
-                                                ScaleY="{Binding Preview.Zoom}"/>
-                            </ItemsControl.LayoutTransform>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <controls:PdfPageView/>

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LatexVault.Services;
@@ -13,6 +14,7 @@ public partial class PreviewViewModel : ObservableObject
     private readonly PdfPreviewService _preview = new();
     private int _loadGeneration;
     private string? _lastPdfPath;
+    private readonly DispatcherTimer _zoomRenderTimer;
 
     [ObservableProperty] private bool _isVisible = true;
     [ObservableProperty] private bool _isLoading;
@@ -25,15 +27,35 @@ public partial class PreviewViewModel : ObservableObject
     public ObservableCollection<BitmapSource> Pages { get; } = new();
     public bool HasPages => Pages.Count > 0;
 
+    /// <summary>PDF points → pixels at 100% zoom (96 DIP/inch screen).</summary>
+    public const int BaseRenderDpi = 96;
+
     public PreviewViewModel()
     {
         Pages.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPages));
+        _zoomRenderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        _zoomRenderTimer.Tick += async (_, _) =>
+        {
+            _zoomRenderTimer.Stop();
+            if (!string.IsNullOrWhiteSpace(_lastPdfPath))
+                await LoadPdf(_lastPdfPath, keepZoom: true).ConfigureAwait(true);
+        };
     }
 
-    partial void OnZoomChanged(double value) => ZoomText = $"{Math.Round(value * 100)}%";
+    partial void OnZoomChanged(double value)
+    {
+        ZoomText = $"{Math.Round(value * 100)}%";
+        // Re-render at higher DPI after wheel/button settle — do not bitmap-stretch.
+        if (!string.IsNullOrWhiteSpace(_lastPdfPath))
+        {
+            _zoomRenderTimer.Stop();
+            _zoomRenderTimer.Start();
+        }
+    }
 
     public void Clear()
     {
+        _zoomRenderTimer.Stop();
         _loadGeneration++;
         _lastPdfPath = null;
         Pages.Clear();
@@ -42,7 +64,9 @@ public partial class PreviewViewModel : ObservableObject
         Hint = "No preview — compile to refresh";
     }
 
-    public async Task LoadPdf(string pdfPath)
+    public Task LoadPdf(string pdfPath) => LoadPdf(pdfPath, keepZoom: false);
+
+    public async Task LoadPdf(string pdfPath, bool keepZoom)
     {
         var gen = ++_loadGeneration;
         if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
@@ -60,15 +84,19 @@ public partial class PreviewViewModel : ObservableObject
             return;
         }
 
+        var zoom = Zoom;
+        var dpi = PdfPreviewService.DpiForZoom(zoom, BaseRenderDpi);
+
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
             IsLoading = true;
-            Hint = "Rendering…";
+            if (Pages.Count == 0)
+                Hint = "Rendering…";
         });
 
         try
         {
-            var pages = await Task.Run(() => _preview.RenderPages(pdfPath)).ConfigureAwait(false);
+            var pages = await Task.Run(() => _preview.RenderPages(pdfPath, dpi)).ConfigureAwait(false);
             if (gen != _loadGeneration) return;
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -112,9 +140,10 @@ public partial class PreviewViewModel : ObservableObject
             StatusMessage = "Exporting pages…";
             var pages = await GetExportPagesAsync().ConfigureAwait(true);
             var baseName = string.IsNullOrWhiteSpace(_lastPdfPath)
-                ? "page" : Path.GetFileNameWithoutExtension(_lastPdfPath);
-            await Task.Run(() => PdfExportService.ExportPagesSeparately(pages, dlg.FolderName, baseName));
-            StatusMessage = $"Exported {pages.Count} page image(s).";
+                ? "page"
+                : Path.GetFileNameWithoutExtension(_lastPdfPath);
+            PdfExportService.ExportPagesSeparately(pages, dlg.FolderName, baseName);
+            StatusMessage = $"Exported {pages.Count} page(s)";
         }
         catch (Exception ex)
         {
@@ -126,24 +155,19 @@ public partial class PreviewViewModel : ObservableObject
     private async Task ExportVerticalAsync()
     {
         if (Pages.Count == 0) return;
-        var baseName = string.IsNullOrWhiteSpace(_lastPdfPath)
-            ? "preview-strip"
-            : Path.GetFileNameWithoutExtension(_lastPdfPath) + "-strip";
         var dlg = new SaveFileDialog
         {
-            Title = "Export vertical stitch PNG",
-            Filter = "PNG image (*.png)|*.png",
-            FileName = baseName + ".png",
-            AddExtension = true,
-            DefaultExt = ".png"
+            Title = "Export vertical strip",
+            Filter = "PNG image|*.png",
+            FileName = "preview-strip.png"
         };
         if (dlg.ShowDialog() != true) return;
         try
         {
-            StatusMessage = "Stitching pages…";
+            StatusMessage = "Exporting strip…";
             var pages = await GetExportPagesAsync().ConfigureAwait(true);
-            await Task.Run(() => PdfExportService.ExportVerticalStrip(pages, dlg.FileName));
-            StatusMessage = "Exported vertical strip.";
+            PdfExportService.ExportVerticalStrip(pages, dlg.FileName);
+            StatusMessage = "Exported vertical strip";
         }
         catch (Exception ex)
         {
@@ -159,8 +183,12 @@ public partial class PreviewViewModel : ObservableObject
             {
                 return await Task.Run(() => _preview.RenderPages(_lastPdfPath!, dpi: 200));
             }
-            catch { }
+            catch
+            {
+                // fall through to on-screen pages
+            }
         }
+
         return Pages.ToList();
     }
 
