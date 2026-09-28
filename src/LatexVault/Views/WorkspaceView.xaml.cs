@@ -70,6 +70,7 @@ if (CompileLogBox != null)
             vm.Compile.PropertyChanged += Compile_PropertyChanged;
             ApplyPreviewColumn();
             ApplyLibraryColumn();
+            _ = EnsurePdfViewerAsync();
         }
     }
 
