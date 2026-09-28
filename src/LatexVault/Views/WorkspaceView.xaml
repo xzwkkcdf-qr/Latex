@@ -1,0 +1,204 @@
+<UserControl x:Class="LatexVault.Views.WorkspaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:LatexVault.Models"
+             Background="{DynamicResource LatexVaultPaperBrush}"
+             FontFamily="{DynamicResource LatexVaultBodyFont}"
+             Foreground="{DynamicResource LatexVaultInkBrush}">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+    <Grid Margin="0,40,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="28"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                BorderBrush="{DynamicResource LatexVaultLineBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,0">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Open Library"
+                        Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                        Command="{Binding OpenLibraryCommand}"
+                        Margin="0,0,8,0"/>
+                <Button Content="Save"
+                        Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                        Command="{Binding SaveCommand}"
+                        Margin="0,0,8,0"/>
+                <Button Content="Compile"
+                        Style="{DynamicResource LatexVaultPrimaryActionStyle}"
+                        Command="{Binding CompileAsyncCommand}"
+                        Margin="0,0,12,0"/>
+                <ComboBox Width="140"
+                          Style="{DynamicResource LatexVaultComboBoxStyle}"
+                          ItemsSource="{Binding Compile.Engines}"
+                          SelectedItem="{Binding Compile.SelectedEngine}"
+                          Margin="0,0,8,0"/>
+                <Button Content="Toggle Preview"
+                        Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                        Command="{Binding TogglePreviewCommand}"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="180" x:Name="LibraryCol"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*" MinWidth="240"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="360" MinWidth="160" x:Name="PreviewCol"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" Margin="16,12,8,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Border Width="1" Height="12" VerticalAlignment="Center"
+                                Background="{DynamicResource LatexVaultInkBrush}" Margin="0,0,8,0"/>
+                        <TextBlock Text="LIBRARY"
+                                   Style="{DynamicResource LatexVaultDrawerKickerStyle}"
+                                   Margin="0"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Library.RootName}"
+                               Style="{DynamicResource LatexVaultDrawerChapterTitleStyle}"
+                               Margin="0,4,0,8"/>
+                </StackPanel>
+                <TextBox Grid.Row="1"
+                         Style="{DynamicResource LatexVaultTextBoxStyle}"
+                         Text="{Binding Library.FilterText, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="0,0,0,8"/>
+                <TreeView Grid.Row="2"
+                          ItemsSource="{Binding Library.Nodes}"
+                          BorderThickness="0"
+                          Background="Transparent"
+                          SelectedItemChanged="LibraryTree_SelectedItemChanged"
+                          MouseDoubleClick="LibraryTree_MouseDoubleClick">
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate DataType="{x:Type models:LibraryNode}"
+                                                  ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Name}" FontSize="12"/>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="New File"
+                            Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                            Margin="0,0,8,0"
+                            IsEnabled="False"/>
+                    <Button Content="New Folder"
+                            Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                            IsEnabled="False"/>
+                </StackPanel>
+            </Grid>
+
+            <GridSplitter Grid.Column="1"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          Background="{DynamicResource LatexVaultLineBrush}"/>
+
+            <Grid Grid.Column="2" Margin="8,12,8,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TabControl ItemsSource="{Binding Editor.Tabs}"
+                            SelectedItem="{Binding Editor.SelectedTab}"
+                            BorderThickness="0,0,0,1"
+                            BorderBrush="{DynamicResource LatexVaultLineBrush}"
+                            Background="Transparent">
+                    <TabControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Title}" FontSize="12"/>
+                        </DataTemplate>
+                    </TabControl.ItemTemplate>
+                </TabControl>
+                <TextBox Grid.Row="1"
+                         Style="{DynamicResource LatexVaultTextBoxStyle}"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         FontFamily="{DynamicResource LatexVaultMonoFont}"
+                         Text="{Binding Editor.SelectedTab.Text, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                         Margin="0,8,0,0"/>
+            </Grid>
+
+            <GridSplitter Grid.Column="3"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          Background="{DynamicResource LatexVaultLineBrush}"
+                          Visibility="{Binding Preview.IsVisible, Converter={StaticResource BoolToVis}}"/>
+
+            <Grid Grid.Column="4" Margin="8,12,16,8"
+                  Visibility="{Binding Preview.IsVisible, Converter={StaticResource BoolToVis}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Border Width="1" Height="12" VerticalAlignment="Center"
+                            Background="{DynamicResource LatexVaultInkBrush}" Margin="0,0,8,0"/>
+                    <TextBlock Text="PREVIEW"
+                               Style="{DynamicResource LatexVaultDrawerKickerStyle}"
+                               Margin="0"/>
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Preview.Hint}"
+                                   Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                                   FontSize="12"
+                                   Margin="0,8,0,8"/>
+                        <ItemsControl ItemsSource="{Binding Preview.Pages}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Image Source="{Binding}"
+                                           Stretch="Uniform"
+                                           Margin="0,0,0,12"
+                                           MaxWidth="480"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="2"
+                BorderBrush="{DynamicResource LatexVaultLineBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="16,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center"
+                           FontSize="11"
+                           Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                           Text="{Binding StatusPath}"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           Margin="16,0"
+                           Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                           Text="{Binding Compile.StatusText}"/>
+                <TextBlock Grid.Column="2"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                           Text="{Binding Compile.SelectedEngine}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

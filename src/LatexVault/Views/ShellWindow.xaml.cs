@@ -1,4 +1,5 @@
 using System.Windows;
+using LatexVault.ViewModels;
 
 namespace LatexVault.Views;
 
@@ -7,6 +8,8 @@ public partial class ShellWindow : Window
     public ShellWindow()
     {
         InitializeComponent();
+        DataContext = new ShellViewModel();
+        WorkspaceHost.Content = new WorkspaceView();
         StateChanged += (_, _) => UpdateMaximizeGlyph();
         UpdateMaximizeGlyph();
     }
