@@ -18,7 +18,7 @@ public class CompileServiceTests
         Assert.Contains("main.tex", psi.Arguments);
         Assert.Equal(@"C:\tex", psi.WorkingDirectory);
         Assert.True(psi.RedirectStandardOutput);
-        Assert.True(psi.CreateNoWindow);
+        Assert.False(psi.CreateNoWindow);
         Assert.False(psi.UseShellExecute);
         Assert.Equal(ProcessWindowStyle.Hidden, psi.WindowStyle);
     }
@@ -33,7 +33,7 @@ public class CompileServiceTests
         Assert.Equal("xelatex.exe", psi.FileName);
         Assert.Contains("-interaction=nonstopmode", psi.Arguments);
         Assert.Contains("b.tex", psi.Arguments);
-        Assert.True(psi.CreateNoWindow);
+        Assert.False(psi.CreateNoWindow);
     }
 
     [Fact]

@@ -39,7 +39,7 @@ public sealed class CompileService
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            CreateNoWindow = true,
+            CreateNoWindow = false,
             WindowStyle = ProcessWindowStyle.Hidden,
             ErrorDialog = false,
             StandardOutputEncoding = Encoding.UTF8,
