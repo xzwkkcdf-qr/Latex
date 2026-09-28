@@ -291,8 +291,30 @@ if (CompileLogBox != null)
         }
         catch (Exception ex)
         {
+            var msg = "WebView2 failed: " + ex.Message;
+            try
+            {
+                var logDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "LatexVault");
+                Directory.CreateDirectory(logDir);
+                File.AppendAllText(
+                    Path.Combine(logDir, "preview.log"),
+                    DateTime.Now.ToString("s") + " " + msg + Environment.NewLine + ex + Environment.NewLine);
+            }
+            catch { }
+
             if (Vm != null)
-                Vm.Preview.Hint = "WebView2 Runtime missing. Install Evergreen WebView2. " + ex.Message;
+            {
+                Vm.Preview.Hint = msg;
+                Vm.Preview.StatusMessage = msg;
+                Vm.ReportStatus(msg);
+            }
+            MessageBox.Show(
+                msg + "\n\nInstall Evergreen WebView2 Runtime, then reopen via Desktop LatexVault-EdgePDF.bat",
+                "LatexVault PDF Preview",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
