@@ -44,6 +44,11 @@ public partial class WorkspaceView : UserControl
         e.Handled = true;
     }
 
+    private void CompileStatus_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        Vm?.Compile.ToggleLogCommand.Execute(null);
+    }
+
     private void LibraryTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragStart = e.GetPosition(null);

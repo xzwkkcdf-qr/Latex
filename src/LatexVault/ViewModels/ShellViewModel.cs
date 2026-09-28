@@ -31,6 +31,7 @@ public partial class ShellViewModel : ObservableObject
         Preview.IsVisible = Settings.PreviewVisible;
         Compile.SelectedEngine = Settings.DefaultEngine;
         Library.SetAfterRefresh(() => Editor.MarkMissingFiles());
+        Compile.Bind(Editor, Preview, () => Settings, PersistLayout);
 
         if (!string.IsNullOrWhiteSpace(Settings.LibraryRoot) &&
             Directory.Exists(Settings.LibraryRoot))
@@ -62,26 +63,6 @@ public partial class ShellViewModel : ObservableObject
     private void Save()
     {
         Editor.SaveActive();
-        PersistLayout();
-    }
-
-    [RelayCommand]
-    private async Task CompileAsync()
-    {
-        var tab = Editor.SelectedTab;
-        if (tab == null || string.IsNullOrWhiteSpace(tab.FilePath))
-        {
-            Compile.StatusText = "No file";
-            return;
-        }
-
-        if (tab.IsDirty)
-            Editor.SaveActive();
-
-        Settings.DefaultEngine = Compile.SelectedEngine;
-        var result = await Compile.CompileAsync(tab.FilePath, Settings);
-        if (result?.Success == true && !string.IsNullOrWhiteSpace(result.PdfPath))
-            Preview.LoadPdf(result.PdfPath!);
         PersistLayout();
     }
 

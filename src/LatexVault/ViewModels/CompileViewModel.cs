@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using LatexVault.Models;
 using LatexVault.Services;
 
@@ -7,37 +8,117 @@ namespace LatexVault.ViewModels;
 public partial class CompileViewModel : ObservableObject
 {
     private readonly CompileService _compile = new();
+    private EditorTabsViewModel? _editor;
+    private PreviewViewModel? _preview;
+    private Func<AppSettings>? _getSettings;
+    private Action? _onCompiled;
 
     [ObservableProperty] private CompileEngine _selectedEngine = CompileEngine.LatexMk;
     [ObservableProperty] private string _statusText = "Idle";
-    [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private string _log = "";
+    [ObservableProperty] private bool _isCompiling;
+    [ObservableProperty] private string _lastLog = "";
+    [ObservableProperty] private bool _isLogOpen;
+    [ObservableProperty] private int _logCaretIndex;
 
+    public EngineOption[] EngineOptions { get; } =
+    [
+        new(CompileEngine.LatexMk, "latexmk"),
+        new(CompileEngine.XeLatex, "xelatex"),
+        new(CompileEngine.PdfLatex, "pdflatex")
+    ];
+
+    // Kept for compatibility with earlier bindings.
     public CompileEngine[] Engines { get; } =
         [CompileEngine.LatexMk, CompileEngine.XeLatex, CompileEngine.PdfLatex];
 
-    public async Task<CompileResult?> CompileAsync(string texPath, AppSettings settings)
+    public void Bind(
+        EditorTabsViewModel editor,
+        PreviewViewModel preview,
+        Func<AppSettings> getSettings,
+        Action? onCompiled = null)
     {
-        if (string.IsNullOrWhiteSpace(texPath) || !File.Exists(texPath))
+        _editor = editor;
+        _preview = preview;
+        _getSettings = getSettings;
+        _onCompiled = onCompiled;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCompile))]
+    private async Task CompileAsync()
+    {
+        if (_editor == null || _getSettings == null)
         {
-            StatusText = "No file";
-            return null;
+            StatusText = "Not ready";
+            return;
         }
 
-        IsBusy = true;
+        var tab = _editor.SelectedTab;
+        if (tab == null || string.IsNullOrWhiteSpace(tab.FilePath))
+        {
+            StatusText = "No file";
+            return;
+        }
+
+        if (tab.IsDirty)
+            _editor.SaveActive();
+
+        var settings = _getSettings();
+        settings.DefaultEngine = SelectedEngine;
+
+        IsCompiling = true;
         StatusText = "Compiling…";
         try
         {
-            var result = await _compile.CompileAsync(SelectedEngine, texPath, settings);
-            Log = result.Log;
-            StatusText = result.Success ? "OK" : (result.ErrorHint ?? "Failed");
-            return result;
+            var result = await _compile.CompileAsync(SelectedEngine, tab.FilePath, settings);
+            LastLog = result.Log ?? "";
+            LogCaretIndex = FirstErrorOffset(LastLog);
+
+            if (result.Success)
+            {
+                StatusText = "OK";
+                IsLogOpen = false;
+                if (!string.IsNullOrWhiteSpace(result.PdfPath))
+                    _preview?.LoadPdf(result.PdfPath!);
+            }
+            else
+            {
+                StatusText = result.ErrorHint ?? "Failed";
+                IsLogOpen = true;
+            }
+
+            _onCompiled?.Invoke();
         }
         finally
         {
-            IsBusy = false;
+            IsCompiling = false;
+            CompileCommand.NotifyCanExecuteChanged();
         }
     }
 
+    private bool CanCompile() => !IsCompiling;
+
+    partial void OnIsCompilingChanged(bool value) => CompileCommand.NotifyCanExecuteChanged();
+
+    [RelayCommand]
+    private void ToggleLog() => IsLogOpen = !IsLogOpen;
+
     public void Cancel() => _compile.CancelRunning();
+
+    public static int FirstErrorOffset(string log)
+    {
+        if (string.IsNullOrEmpty(log))
+            return 0;
+
+        var bang = log.IndexOf('!');
+        var error = log.IndexOf("error", StringComparison.OrdinalIgnoreCase);
+        var candidates = new List<int>();
+        if (bang >= 0) candidates.Add(bang);
+        if (error >= 0) candidates.Add(error);
+        return candidates.Count == 0 ? 0 : candidates.Min();
+    }
+}
+
+public sealed record EngineOption(CompileEngine Engine, string Display)
+{
+    public override string ToString() => Display;
 }
