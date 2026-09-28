@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="clr-namespace:LatexVault.Models"
              xmlns:controls="clr-namespace:LatexVault.Views.Controls"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              Background="{DynamicResource LatexVaultPaperBrush}"
              FontFamily="{DynamicResource LatexVaultBodyFont}"
              Foreground="{DynamicResource LatexVaultInkBrush}">
@@ -212,27 +213,13 @@
                             ToolTip="Export vertical stitch PNG" Margin="0,0,4,4"/>
                 </WrapPanel>
                 <Grid Grid.Row="2">
-                    <ScrollViewer x:Name="PreviewScroll"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Auto">
-                        <ScrollViewer.Style>
-                            <Style TargetType="ScrollViewer">
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Preview.IsEmpty}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ScrollViewer.Style>
-                        <ItemsControl ItemsSource="{Binding Preview.Pages}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <controls:PdfPageView/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <Border x:Name="PdfHost"
+                            BorderBrush="{DynamicResource LatexVaultLineBrush}"
+                            BorderThickness="1"
+                            Background="{DynamicResource LatexVaultPaperMutedBrush}">
+                        <wv2:WebView2 x:Name="PdfWebView"
+                                      DefaultBackgroundColor="Transparent"/>
+                    </Border>
 
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16">
                         <StackPanel.Style>

@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Web.WebView2.Core;
 using LatexVault.Models;
 using LatexVault.Services;
 using LatexVault.ViewModels;
@@ -19,7 +20,12 @@ public partial class WorkspaceView : UserControl
     {
         InitializeComponent();
         DataContextChanged += WorkspaceView_DataContextChanged;
-        Loaded += (_, _) => { ApplyPreviewColumn(); WireHandlers(); };
+        Loaded += async (_, _) =>
+        {
+            ApplyPreviewColumn();
+            WireHandlers();
+            await WirePdfViewerAsync();
+        };
     }
 
 
@@ -37,12 +43,7 @@ public partial class WorkspaceView : UserControl
         LibraryTree.DragOver += LibraryTree_DragOver;
         LibraryTree.Drop -= LibraryTree_Drop;
         LibraryTree.Drop += LibraryTree_Drop;
-        if (PreviewScroll != null)
-        {
-            PreviewScroll.PreviewMouseWheel -= PreviewScroll_PreviewMouseWheel;
-            PreviewScroll.PreviewMouseWheel += PreviewScroll_PreviewMouseWheel;
-        }
-        if (CompileLogBox != null)
+if (CompileLogBox != null)
         {
             CompileLogBox.TargetUpdated -= CompileLogBox_TargetUpdated;
             CompileLogBox.TargetUpdated += CompileLogBox_TargetUpdated;
@@ -261,6 +262,65 @@ public partial class WorkspaceView : UserControl
             origin = VisualTreeHelper.GetParent(origin);
         }
         return null;
+    }
+
+
+    private PreviewViewModel? _previewVm;
+
+    private async Task WirePdfViewerAsync()
+    {
+        try
+        {
+            await PdfWebView.EnsureCoreWebView2Async();
+            PdfWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            PdfWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            PdfWebView.CoreWebView2.Settings.HiddenPdfToolbarItems =
+                CoreWebView2PdfToolbarItems.Save
+                | CoreWebView2PdfToolbarItems.SaveAs
+                | CoreWebView2PdfToolbarItems.Print
+                | CoreWebView2PdfToolbarItems.MoreSettings;
+        }
+        catch (Exception ex)
+        {
+            if (Vm != null)
+                Vm.Preview.Hint = "WebView2 missing — install Edge WebView2 Runtime. " + ex.Message;
+            return;
+        }
+
+        void OnNav() => _ = NavigatePdfAsync();
+
+        if (_previewVm != null)
+            _previewVm.ViewerNavigateRequested -= OnNav;
+        _previewVm = Vm?.Preview;
+        if (_previewVm != null)
+            _previewVm.ViewerNavigateRequested += OnNav;
+
+        await NavigatePdfAsync();
+    }
+
+    private Task NavigatePdfAsync()
+    {
+        if (PdfWebView.CoreWebView2 == null)
+            return Task.CompletedTask;
+
+        var uri = Vm?.Preview.ViewerUri;
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            PdfWebView.CoreWebView2.Navigate("about:blank");
+            return Task.CompletedTask;
+        }
+
+        try
+        {
+            PdfWebView.ZoomFactor = Math.Clamp(Vm!.Preview.Zoom, 0.3, 4.0);
+            PdfWebView.CoreWebView2.Navigate(uri);
+        }
+        catch (Exception ex)
+        {
+            Vm!.Preview.Hint = "PDF navigate failed: " + ex.Message;
+        }
+
+        return Task.CompletedTask;
     }
 
     public void PreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
