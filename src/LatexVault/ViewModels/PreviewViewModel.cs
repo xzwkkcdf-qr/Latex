@@ -2,11 +2,10 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LatexVault.Services;
-using Microsoft.Win32;
 
 namespace LatexVault.ViewModels;
 
-/// <summary>Live preview is WebView2 / Edge PDF only.</summary>
+/// <summary>Live PDF preview: WebView2 only. No Docnet / bitmap path.</summary>
 public partial class PreviewViewModel : ObservableObject
 {
     private int _loadGeneration;
@@ -63,7 +62,7 @@ public partial class PreviewViewModel : ObservableObject
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
             IsLoading = true;
-            Hint = "Loading PDF…";
+            Hint = "Loading PDF (WebView2)…";
         });
 
         try
@@ -86,12 +85,11 @@ public partial class PreviewViewModel : ObservableObject
                 ClearStagedViewer();
                 _stagedViewerPath = staged;
                 _lastPdfPath = pdfPath;
-                // Setting ViewerUri is the single signal for the view to Navigate (once).
                 ViewerUri = BuildViewerUri(staged, Zoom);
                 IsEmpty = false;
                 Hint = "";
                 IsLoading = false;
-                StatusMessage = "WebView2";
+                StatusMessage = "WebView2 Edge PDF";
                 OnPropertyChanged(nameof(HasDocument));
             });
         }
@@ -110,8 +108,7 @@ public partial class PreviewViewModel : ObservableObject
     private string BuildViewerUri(string path, double zoom)
     {
         _navEpoch++;
-        // Cache-bust so recompile reloads; Edge PDF uses view=FitH; app zoom via WebView2.ZoomFactor.
-        return ToFileUri(path) + $"#view=FitH&nav={_navEpoch}&zoom={Math.Round(zoom * 100)}";
+        return ToFileUri(path) + $"#view=FitH&nav={_navEpoch}";
     }
 
     public static string ToFileUri(string path)
@@ -127,53 +124,6 @@ public partial class PreviewViewModel : ObservableObject
     [RelayCommand] private void ZoomReset() => SetZoom(1.0);
     public void SetZoom(double value) => Zoom = Math.Clamp(value, 0.25, 4.0);
     public void ZoomByWheel(int delta) => SetZoom(Zoom * (delta > 0 ? 1.1 : 1.0 / 1.1));
-
-    [RelayCommand]
-    private async Task ExportPagesAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_lastPdfPath) || !File.Exists(_lastPdfPath)) return;
-        var dlg = new OpenFolderDialog { Title = "Export one PNG per page" };
-        if (dlg.ShowDialog() != true) return;
-        try
-        {
-            StatusMessage = "Exporting pages…";
-            var pages = await Task.Run(() => PdfRasterService.RenderPages(_lastPdfPath!, dpi: 200));
-            var baseName = Path.GetFileNameWithoutExtension(_lastPdfPath);
-            PdfExportService.ExportPagesSeparately(pages, dlg.FolderName, baseName);
-            StatusMessage = $"Exported {pages.Count} page image(s).";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = "Export failed: " + ex.Message;
-        }
-    }
-
-    [RelayCommand]
-    private async Task ExportVerticalAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_lastPdfPath) || !File.Exists(_lastPdfPath)) return;
-        var baseName = Path.GetFileNameWithoutExtension(_lastPdfPath) + "-strip";
-        var dlg = new SaveFileDialog
-        {
-            Title = "Export vertical stitch PNG",
-            Filter = "PNG image (*.png)|*.png",
-            FileName = baseName + ".png",
-            AddExtension = true,
-            DefaultExt = ".png"
-        };
-        if (dlg.ShowDialog() != true) return;
-        try
-        {
-            StatusMessage = "Stitching pages…";
-            var pages = await Task.Run(() => PdfRasterService.RenderPages(_lastPdfPath!, dpi: 200));
-            await Task.Run(() => PdfExportService.ExportVerticalStrip(pages, dlg.FileName));
-            StatusMessage = "Exported vertical strip.";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = "Export failed: " + ex.Message;
-        }
-    }
 
     private void ClearStagedViewer()
     {

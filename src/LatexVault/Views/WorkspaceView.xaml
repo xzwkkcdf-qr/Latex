@@ -205,13 +205,7 @@
                             ToolTip="Reset zoom (Ctrl+wheel)" Margin="0,0,4,4"/>
                     <Button Content="+" Width="28" Style="{DynamicResource LatexVaultSecondaryActionStyle}"
                             Command="{Binding Preview.ZoomInCommand}" ToolTip="Zoom in" Margin="0,0,8,4"/>
-                    <Button Content="Pages" Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                            Command="{Binding Preview.ExportPagesCommand}"
-                            ToolTip="Export one PNG per page" Margin="0,0,4,4"/>
-                    <Button Content="Strip" Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                            Command="{Binding Preview.ExportVerticalCommand}"
-                            ToolTip="Export vertical stitch PNG" Margin="0,0,4,4"/>
-                    <TextBlock Text="Edge PDF"
+<TextBlock Text="WEBVIEW2 / EDGE PDF"
                                VerticalAlignment="Center"
                                Margin="12,0,0,4"
                                FontSize="11"

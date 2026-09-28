@@ -1,6 +1,6 @@
 namespace LatexVault.Services;
 
-/// <summary>Stages PDF files for WebView2 preview. No bitmap rasterization.</summary>
+/// <summary>Stages PDF files for WebView2. No rasterization.</summary>
 public static class PdfPreviewService
 {
     public static string StageForPreview(string pdfPath)

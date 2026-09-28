@@ -269,7 +269,6 @@ if (CompileLogBox != null)
 
 
     private PreviewViewModel? _previewVm;
-    private Action? _pdfNavHandler;
     private bool _pdfReady;
 
     private async Task EnsurePdfViewerAsync()
