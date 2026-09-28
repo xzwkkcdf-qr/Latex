@@ -86,4 +86,32 @@ public partial class EditorTabsViewModel : ObservableObject
             tab.IsMissing = !File.Exists(tab.FilePath);
         }
     }
+
+    public void RemapPath(string oldPath, string newPath)
+    {
+        oldPath = Path.GetFullPath(oldPath);
+        newPath = Path.GetFullPath(newPath);
+        var oldPrefix = oldPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        + Path.DirectorySeparatorChar;
+
+        foreach (var tab in Tabs)
+        {
+            if (string.IsNullOrWhiteSpace(tab.FilePath))
+                continue;
+            var full = Path.GetFullPath(tab.FilePath);
+            if (string.Equals(full, oldPath, StringComparison.OrdinalIgnoreCase))
+            {
+                tab.FilePath = newPath;
+                tab.Title = Path.GetFileName(newPath);
+                tab.IsMissing = !File.Exists(newPath);
+            }
+            else if (full.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var remapped = Path.Combine(newPath, full.Substring(oldPrefix.Length));
+                tab.FilePath = remapped;
+                tab.Title = Path.GetFileName(remapped);
+                tab.IsMissing = !File.Exists(remapped);
+            }
+        }
+    }
 }

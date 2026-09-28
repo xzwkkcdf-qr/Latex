@@ -75,13 +75,27 @@
                 <TextBox Grid.Row="1"
                          Style="{DynamicResource LatexVaultTextBoxStyle}"
                          Text="{Binding Library.FilterText, UpdateSourceTrigger=PropertyChanged}"
-                         Margin="0,0,0,8"/>
-                <TreeView Grid.Row="2"
+                         Margin="0,0,0,8"
+                         ToolTip="Filter by name"/>
+                <TreeView x:Name="LibraryTree"
+                          Grid.Row="2"
                           ItemsSource="{Binding Library.Nodes}"
                           BorderThickness="0"
                           Background="Transparent"
+                          AllowDrop="True"
                           SelectedItemChanged="LibraryTree_SelectedItemChanged"
-                          MouseDoubleClick="LibraryTree_MouseDoubleClick">
+                          MouseDoubleClick="LibraryTree_MouseDoubleClick"
+                          PreviewMouseLeftButtonDown="LibraryTree_PreviewMouseLeftButtonDown"
+                          PreviewMouseMove="LibraryTree_PreviewMouseMove"
+                          DragOver="LibraryTree_DragOver"
+                          Drop="LibraryTree_Drop">
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="True"/>
+                            <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVis}}"/>
+                            <Setter Property="Padding" Value="2,1"/>
+                        </Style>
+                    </TreeView.ItemContainerStyle>
                     <TreeView.ItemTemplate>
                         <HierarchicalDataTemplate DataType="{x:Type models:LibraryNode}"
                                                   ItemsSource="{Binding Children}">
@@ -89,15 +103,24 @@
                         </HierarchicalDataTemplate>
                     </TreeView.ItemTemplate>
                 </TreeView>
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Content="New File"
+                <WrapPanel Grid.Row="3" Margin="0,8,0,0">
+                    <Button Content="New Tex"
                             Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                            Margin="0,0,8,0"
-                            IsEnabled="False"/>
+                            Command="{Binding NewTexCommand}"
+                            Margin="0,0,8,4"/>
                     <Button Content="New Folder"
                             Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                            IsEnabled="False"/>
-                </StackPanel>
+                            Command="{Binding NewFolderCommand}"
+                            Margin="0,0,8,4"/>
+                    <Button Content="Rename"
+                            Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                            Command="{Binding RenameNodeCommand}"
+                            Margin="0,0,8,4"/>
+                    <Button Content="Delete"
+                            Style="{DynamicResource LatexVaultSecondaryActionStyle}"
+                            Command="{Binding DeleteNodeCommand}"
+                            Margin="0,0,8,4"/>
+                </WrapPanel>
             </Grid>
 
             <GridSplitter Grid.Column="1"
@@ -201,11 +224,17 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock VerticalAlignment="Center"
-                           FontSize="11"
-                           Foreground="{DynamicResource LatexVaultMutedInkBrush}"
-                           Text="{Binding StatusPath}"
-                           TextTrimming="CharacterEllipsis"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock FontSize="11"
+                               Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                               Text="{Binding StatusMessage}"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,0,12,0"/>
+                    <TextBlock FontSize="11"
+                               Foreground="{DynamicResource LatexVaultMutedInkBrush}"
+                               Text="{Binding StatusPath}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
                 <TextBlock Grid.Column="1"
                            VerticalAlignment="Center"
                            FontSize="11"
