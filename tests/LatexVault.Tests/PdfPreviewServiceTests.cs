@@ -5,20 +5,21 @@ namespace LatexVault.Tests;
 public class PdfPreviewServiceTests
 {
     [Fact]
-    public void StageForPreview_copies_to_temp_and_returns_new_path()
+    public void StageForPreview_copies_to_temp()
     {
-        var src = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".pdf");
-        File.WriteAllText(src, "%PDF-1.4 fake");
+        var src = Path.Combine(Path.GetTempPath(), "lv-stage-src-" + Guid.NewGuid().ToString("N") + ".pdf");
+        File.WriteAllText(src, "%PDF-1.1 stub");
         try
         {
             var staged = PdfPreviewService.StageForPreview(src);
-            Assert.NotEqual(Path.GetFullPath(src), Path.GetFullPath(staged));
             Assert.True(File.Exists(staged));
-            Assert.Contains("LatexVault", staged, StringComparison.OrdinalIgnoreCase);
+            Assert.NotEqual(Path.GetFullPath(src), Path.GetFullPath(staged));
+            Assert.Equal(File.ReadAllText(src), File.ReadAllText(staged));
+            File.Delete(staged);
         }
         finally
         {
-            File.Delete(src);
+            try { File.Delete(src); } catch { }
         }
     }
 }

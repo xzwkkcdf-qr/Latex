@@ -1,6 +1,4 @@
-using System.Collections.ObjectModel;
 using System.Windows;
-using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LatexVault.Services;
@@ -8,11 +6,12 @@ using Microsoft.Win32;
 
 namespace LatexVault.ViewModels;
 
+/// <summary>Live preview is WebView2 / Edge PDF only.</summary>
 public partial class PreviewViewModel : ObservableObject
 {
-    private readonly PdfPreviewService _preview = new();
     private int _loadGeneration;
     private string? _lastPdfPath;
+    private string? _stagedViewerPath;
 
     [ObservableProperty] private bool _isVisible = true;
     [ObservableProperty] private bool _isLoading;
@@ -21,35 +20,30 @@ public partial class PreviewViewModel : ObservableObject
     [ObservableProperty] private double _zoom = 1.0;
     [ObservableProperty] private string _zoomText = "100%";
     [ObservableProperty] private string _statusMessage = "";
-    /// <summary>file:/// URI for WebView2 Edge PDF viewer (vector-sharp like VS Code).</summary>
     [ObservableProperty] private string? _viewerUri;
 
-    public ObservableCollection<BitmapSource> Pages { get; } = new();
-    public bool HasPages => Pages.Count > 0 || !string.IsNullOrWhiteSpace(_lastPdfPath);
+    public bool HasDocument => !string.IsNullOrWhiteSpace(_lastPdfPath);
 
     public event Action? ViewerNavigateRequested;
-
-    public PreviewViewModel()
-    {
-        Pages.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPages));
-    }
 
     partial void OnZoomChanged(double value)
     {
         ZoomText = $"{Math.Round(value * 100)}%";
-        ViewerNavigateRequested?.Invoke();
+        if (!string.IsNullOrWhiteSpace(ViewerUri) || !string.IsNullOrWhiteSpace(_lastPdfPath))
+            ViewerNavigateRequested?.Invoke();
     }
 
     public void Clear()
     {
         _loadGeneration++;
         _lastPdfPath = null;
+        ClearStagedViewer();
         ViewerUri = null;
-        Pages.Clear();
         IsEmpty = true;
         IsLoading = false;
         Hint = "No preview — compile to refresh";
-        OnPropertyChanged(nameof(HasPages));
+        StatusMessage = "";
+        OnPropertyChanged(nameof(HasDocument));
         ViewerNavigateRequested?.Invoke();
     }
 
@@ -76,21 +70,31 @@ public partial class PreviewViewModel : ObservableObject
 
         try
         {
-            // Stage copy so TeX can overwrite the original while viewer holds the file.
             var staged = await Task.Run(() => PdfPreviewService.StageForPreview(pdfPath)).ConfigureAwait(false);
-            if (gen != _loadGeneration) return;
+            if (gen != _loadGeneration)
+            {
+                try { File.Delete(staged); } catch { }
+                return;
+            }
 
             var uri = ToFileUri(staged) + $"#zoom={Math.Round(Zoom * 100)}";
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                if (gen != _loadGeneration) return;
+                if (gen != _loadGeneration)
+                {
+                    try { File.Delete(staged); } catch { }
+                    return;
+                }
+
+                ClearStagedViewer();
+                _stagedViewerPath = staged;
                 _lastPdfPath = pdfPath;
                 ViewerUri = uri;
                 IsEmpty = false;
                 Hint = "";
                 IsLoading = false;
-                StatusMessage = "Edge PDF viewer";
-                OnPropertyChanged(nameof(HasPages));
+                StatusMessage = "WebView2";
+                OnPropertyChanged(nameof(HasDocument));
                 ViewerNavigateRequested?.Invoke();
             });
         }
@@ -129,7 +133,7 @@ public partial class PreviewViewModel : ObservableObject
         try
         {
             StatusMessage = "Exporting pages…";
-            var pages = await Task.Run(() => _preview.RenderPages(_lastPdfPath!, renderDpi: 200, bitmapDpi: 96));
+            var pages = await Task.Run(() => PdfRasterService.RenderPages(_lastPdfPath!, dpi: 200));
             var baseName = Path.GetFileNameWithoutExtension(_lastPdfPath);
             PdfExportService.ExportPagesSeparately(pages, dlg.FolderName, baseName);
             StatusMessage = $"Exported {pages.Count} page image(s).";
@@ -157,7 +161,7 @@ public partial class PreviewViewModel : ObservableObject
         try
         {
             StatusMessage = "Stitching pages…";
-            var pages = await Task.Run(() => _preview.RenderPages(_lastPdfPath!, renderDpi: 200, bitmapDpi: 96));
+            var pages = await Task.Run(() => PdfRasterService.RenderPages(_lastPdfPath!, dpi: 200));
             await Task.Run(() => PdfExportService.ExportVerticalStrip(pages, dlg.FileName));
             StatusMessage = "Exported vertical strip.";
         }
@@ -167,5 +171,14 @@ public partial class PreviewViewModel : ObservableObject
         }
     }
 
-    public void DisposePreview() => _preview.Dispose();
+    private void ClearStagedViewer()
+    {
+        if (_stagedViewerPath != null)
+        {
+            try { File.Delete(_stagedViewerPath); } catch { }
+            _stagedViewerPath = null;
+        }
+    }
+
+    public void DisposePreview() => ClearStagedViewer();
 }
