@@ -18,31 +18,18 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-
             <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                 <Border Width="1" Height="14" VerticalAlignment="Center"
                         Background="{DynamicResource LatexVaultInkBrush}" Margin="0,0,10,0"/>
-                <TextBlock FontFamily="{DynamicResource LatexVaultDisplayFont}"
-                           FontSize="18"
-                           Text="Settings"/>
+                <TextBlock FontFamily="{DynamicResource LatexVaultDisplayFont}" FontSize="18" Text="Settings"/>
             </StackPanel>
-
             <StackPanel Grid.Row="1">
                 <TextBlock Text="LIBRARY ROOT" Style="{DynamicResource LatexVaultDrawerKickerStyle}" Margin="0,0,0,6"/>
-                <Grid Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="LibraryRootBox"
-                             Style="{DynamicResource LatexVaultTextBoxStyle}"/>
-                    <Button Grid.Column="1"
-                            Content="Browse"
-                            Margin="8,0,0,0"
-                            Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                            Click="BrowseLibrary_Click"/>
-                </Grid>
-
+                <TextBlock Text="Uses the built-in Library folder next to the app. Import .tex files from the toolbar."
+                           FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource LatexVaultMutedInkBrush}" Margin="0,0,0,6"/>
+                <TextBox x:Name="LibraryRootBox" Style="{DynamicResource LatexVaultTextBoxStyle}"
+                         IsReadOnly="True" Margin="0,0,0,16"/>
                 <TextBlock Text="ENGINE PATHS" Style="{DynamicResource LatexVaultDrawerKickerStyle}" Margin="0,0,0,6"/>
                 <TextBlock Text="latexmk" FontSize="11" Foreground="{DynamicResource LatexVaultMutedInkBrush}" Margin="0,0,0,4"/>
                 <TextBox x:Name="LatexMkPathBox" Style="{DynamicResource LatexVaultTextBoxStyle}" Margin="0,0,0,8"/>
@@ -50,21 +37,11 @@
                 <TextBox x:Name="XeLatexPathBox" Style="{DynamicResource LatexVaultTextBoxStyle}" Margin="0,0,0,8"/>
                 <TextBlock Text="pdflatex" FontSize="11" Foreground="{DynamicResource LatexVaultMutedInkBrush}" Margin="0,0,0,4"/>
                 <TextBox x:Name="PdfLatexPathBox" Style="{DynamicResource LatexVaultTextBoxStyle}" Margin="0,0,0,16"/>
-
-                <CheckBox x:Name="AutoCompileBox"
-                          Content="Auto-compile on save"
-                          Margin="0,0,0,8"/>
+                <CheckBox x:Name="AutoCompileBox" Content="Auto-compile on save" Margin="0,0,0,8"/>
             </StackPanel>
-
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                <Button Content="Save"
-                        Style="{DynamicResource LatexVaultPrimaryActionStyle}"
-                        Margin="0,0,8,0"
-                        Click="Save_Click"/>
-                <Button Content="Cancel"
-                        Style="{DynamicResource LatexVaultSecondaryActionStyle}"
-                        IsCancel="True"
-                        Click="Cancel_Click"/>
+                <Button Content="Save" Style="{DynamicResource LatexVaultPrimaryActionStyle}" Margin="0,0,8,0" Click="Save_Click"/>
+                <Button Content="Cancel" Style="{DynamicResource LatexVaultSecondaryActionStyle}" IsCancel="True" Click="Cancel_Click"/>
             </StackPanel>
         </Grid>
     </Border>

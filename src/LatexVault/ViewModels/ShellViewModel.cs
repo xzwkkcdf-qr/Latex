@@ -27,49 +27,108 @@ public partial class ShellViewModel : ObservableObject
     public ShellViewModel()
     {
         Settings = _settingsStore.Load();
+        EngineLocator.ApplyDetectedPaths(Settings);
+        if (Settings.DefaultEngine == CompileEngine.LatexMk &&
+            string.IsNullOrWhiteSpace(Settings.LatexMkPath) &&
+            !string.IsNullOrWhiteSpace(Settings.XeLatexPath))
+        {
+            Settings.DefaultEngine = CompileEngine.XeLatex;
+        }
+
+        _settingsStore.Save(Settings);
         LibraryPaneWidth = Settings.LibraryPaneWidth > 0 ? Settings.LibraryPaneWidth : 280;
         PreviewPaneWidth = Settings.PreviewPaneWidth > 0 ? Settings.PreviewPaneWidth : 360;
         Preview.IsVisible = Settings.PreviewVisible;
         Compile.SelectedEngine = Settings.DefaultEngine;
         Library.SetAfterRefresh(() => Editor.MarkMissingFiles());
         Compile.Bind(Editor, Preview, () => Settings, PersistLayout);
-
-        if (!string.IsNullOrWhiteSpace(Settings.LibraryRoot) &&
-            Directory.Exists(Settings.LibraryRoot))
+        Preview.PropertyChanged += (_, e) =>
         {
-            Library.Load(Settings.LibraryRoot);
-            StatusPath = Settings.LibraryRoot;
-        }
+            if (e.PropertyName == nameof(PreviewViewModel.StatusMessage) &&
+                !string.IsNullOrWhiteSpace(Preview.StatusMessage))
+                StatusMessage = Preview.StatusMessage;
+        };
+        OpenDefaultLibrary(persistIfChanged: true);
     }
 
     public void EnsureLibraryOnStartup()
     {
         if (_firstRunChecked) return;
         _firstRunChecked = true;
-
-        if (!string.IsNullOrWhiteSpace(Settings.LibraryRoot) &&
-            Directory.Exists(Settings.LibraryRoot))
-            return;
-
-        OpenLibrary();
+        OpenDefaultLibrary(persistIfChanged: true);
     }
 
-    [RelayCommand]
-    private void OpenLibrary()
+    private void OpenDefaultLibrary(bool persistIfChanged)
     {
-        var dlg = new OpenFolderDialog
-        {
-            Title = "Open LaTeX library folder"
-        };
-        if (dlg.ShowDialog() != true)
-            return;
-
-        var root = dlg.FolderName;
+        var root = AppPaths.EnsureDefaultLibrary();
+        var changed = !string.Equals(Settings.LibraryRoot, root, StringComparison.OrdinalIgnoreCase);
         Library.Load(root);
         Settings.LibraryRoot = root;
         StatusPath = root;
         StatusMessage = "";
-        _settingsStore.Save(Settings);
+        if (persistIfChanged && changed)
+            _settingsStore.Save(Settings);
+    }
+
+    [RelayCommand]
+    private void ImportTex()
+    {
+        var parent = Library.GetCreateParentDirectory()
+                     ?? (Directory.Exists(Settings.LibraryRoot) ? Settings.LibraryRoot : null)
+                     ?? AppPaths.EnsureDefaultLibrary();
+
+        var dlg = new OpenFileDialog
+        {
+            Title = "Import TeX files",
+            Filter = "TeX files (*.tex)|*.tex|All files (*.*)|*.*",
+            Multiselect = true
+        };
+        if (dlg.ShowDialog() != true || dlg.FileNames.Length == 0)
+            return;
+
+        string? firstImported = null;
+        var count = 0;
+        try
+        {
+            foreach (var source in dlg.FileNames)
+            {
+                if (!LibraryPathRules.IsTexFile(source))
+                    continue;
+
+                var destName = Path.GetFileName(source);
+                var dest = Path.Combine(parent, destName);
+                if (File.Exists(dest))
+                {
+                    var stem = Path.GetFileNameWithoutExtension(destName);
+                    var ext = Path.GetExtension(destName);
+                    var i = 1;
+                    do
+                    {
+                        dest = Path.Combine(parent, $"{stem}-{i}{ext}");
+                        i++;
+                    } while (File.Exists(dest));
+                }
+
+                File.Copy(source, dest);
+                firstImported ??= dest;
+                count++;
+            }
+
+            Library.Refresh();
+            if (firstImported != null)
+            {
+                Editor.OpenFile(firstImported);
+                StatusPath = firstImported;
+            }
+
+            StatusMessage = count == 0
+                ? "No .tex files imported."
+                : $"Imported {count} file(s).";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = ex.Message;
+        }
     }
 
     [RelayCommand]
@@ -96,24 +155,13 @@ public partial class ShellViewModel : ObservableObject
         if (updated == null)
             return;
 
-        var rootChanged = !string.Equals(
-            Settings.LibraryRoot, updated.LibraryRoot, StringComparison.OrdinalIgnoreCase);
-
-        Settings.LibraryRoot = updated.LibraryRoot;
         Settings.LatexMkPath = updated.LatexMkPath;
         Settings.XeLatexPath = updated.XeLatexPath;
         Settings.PdfLatexPath = updated.PdfLatexPath;
         Settings.AutoCompileOnSave = updated.AutoCompileOnSave;
+        Settings.LibraryRoot = AppPaths.EnsureDefaultLibrary();
         _settingsStore.Save(Settings);
-
-        if (rootChanged &&
-            !string.IsNullOrWhiteSpace(Settings.LibraryRoot) &&
-            Directory.Exists(Settings.LibraryRoot))
-        {
-            Library.Load(Settings.LibraryRoot);
-            StatusPath = Settings.LibraryRoot;
-        }
-
+        OpenDefaultLibrary(persistIfChanged: false);
         StatusMessage = "Settings saved.";
     }
 
@@ -253,13 +301,8 @@ public partial class ShellViewModel : ObservableObject
         StatusMessage = "Library refreshed.";
     }
 
-    public void ReportIllegalMove()
-    {
-        StatusMessage = "Cannot move into its own subfolder.";
-    }
-
+    public void ReportIllegalMove() => StatusMessage = "Cannot move into its own subfolder.";
     public void ReportStatus(string message) => StatusMessage = message;
-
     public bool ConfirmCloseSession() => Editor.ConfirmCloseAll();
 
     public void PersistSession(Window window)

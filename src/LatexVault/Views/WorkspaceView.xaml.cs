@@ -7,8 +7,8 @@ using LatexVault.Models;
 using LatexVault.Services;
 using LatexVault.ViewModels;
 
-namespace LatexVault.Views;
-
+namespace LatexVault.Views
+{
 public partial class WorkspaceView : UserControl
 {
     private Point _dragStart;
@@ -19,7 +19,34 @@ public partial class WorkspaceView : UserControl
     {
         InitializeComponent();
         DataContextChanged += WorkspaceView_DataContextChanged;
-        Loaded += (_, _) => ApplyPreviewColumn();
+        Loaded += (_, _) => { ApplyPreviewColumn(); WireHandlers(); };
+    }
+
+
+    private void WireHandlers()
+    {
+        LibraryTree.SelectedItemChanged -= LibraryTree_SelectedItemChanged;
+        LibraryTree.SelectedItemChanged += LibraryTree_SelectedItemChanged;
+        LibraryTree.MouseDoubleClick -= LibraryTree_MouseDoubleClick;
+        LibraryTree.MouseDoubleClick += LibraryTree_MouseDoubleClick;
+        LibraryTree.PreviewMouseLeftButtonDown -= LibraryTree_PreviewMouseLeftButtonDown;
+        LibraryTree.PreviewMouseLeftButtonDown += LibraryTree_PreviewMouseLeftButtonDown;
+        LibraryTree.PreviewMouseMove -= LibraryTree_PreviewMouseMove;
+        LibraryTree.PreviewMouseMove += LibraryTree_PreviewMouseMove;
+        LibraryTree.DragOver -= LibraryTree_DragOver;
+        LibraryTree.DragOver += LibraryTree_DragOver;
+        LibraryTree.Drop -= LibraryTree_Drop;
+        LibraryTree.Drop += LibraryTree_Drop;
+        if (PreviewScroll != null)
+        {
+            PreviewScroll.PreviewMouseWheel -= PreviewScroll_PreviewMouseWheel;
+            PreviewScroll.PreviewMouseWheel += PreviewScroll_PreviewMouseWheel;
+        }
+        if (CompileLogBox != null)
+        {
+            CompileLogBox.TargetUpdated -= CompileLogBox_TargetUpdated;
+            CompileLogBox.TargetUpdated += CompileLogBox_TargetUpdated;
+        }
     }
 
     private ShellViewModel? Vm => DataContext as ShellViewModel;
@@ -235,4 +262,14 @@ public partial class WorkspaceView : UserControl
         }
         return null;
     }
+
+    private void PreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Vm == null) return;
+        if (Keyboard.Modifiers != ModifierKeys.Control)
+            return;
+        Vm.Preview.ZoomByWheel(e.Delta);
+        e.Handled = true;
+    }
+}
 }
