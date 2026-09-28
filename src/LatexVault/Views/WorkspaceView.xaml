@@ -89,13 +89,7 @@
                           ItemsSource="{Binding Library.Nodes}"
                           BorderThickness="0"
                           Background="Transparent"
-                          AllowDrop="True"
-                          SelectedItemChanged="LibraryTree_SelectedItemChanged"
-                          MouseDoubleClick="LibraryTree_MouseDoubleClick"
-                          PreviewMouseLeftButtonDown="LibraryTree_PreviewMouseLeftButtonDown"
-                          PreviewMouseMove="LibraryTree_PreviewMouseMove"
-                          DragOver="LibraryTree_DragOver"
-                          Drop="LibraryTree_Drop">
+                          AllowDrop="True">
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="TreeViewItem">
                             <Setter Property="IsExpanded" Value="True"/>
@@ -220,8 +214,7 @@
                 <Grid Grid.Row="2">
                     <ScrollViewer x:Name="PreviewScroll"
                                   VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Auto"
-                                  PreviewMouseWheel="PreviewScroll_PreviewMouseWheel">
+                                  HorizontalScrollBarVisibility="Auto">
                         <ScrollViewer.Style>
                             <Style TargetType="ScrollViewer">
                                 <Setter Property="Visibility" Value="Visible"/>
@@ -336,8 +329,7 @@
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Auto"
                          x:Name="CompileLogBox"
-                         Text="{Binding Compile.LastLog, Mode=OneWay, NotifyOnTargetUpdated=True}"
-                         TargetUpdated="CompileLogBox_TargetUpdated"/>
+                         Text="{Binding Compile.LastLog, Mode=OneWay, NotifyOnTargetUpdated=True}"/>
             </Grid>
         </Border>
 

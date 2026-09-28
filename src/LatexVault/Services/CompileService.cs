@@ -22,24 +22,57 @@ public sealed class CompileService
         var fileName = Path.GetFileName(texPath);
         var (exe, args) = engine switch
         {
-            CompileEngine.LatexMk => (executableOverride ?? "latexmk", $"-pdf -interaction=nonstopmode \"{fileName}\""),
-            CompileEngine.XeLatex => (executableOverride ?? "xelatex", $"-interaction=nonstopmode \"{fileName}\""),
-            CompileEngine.PdfLatex => (executableOverride ?? "pdflatex", $"-interaction=nonstopmode \"{fileName}\""),
+            CompileEngine.LatexMk => (executableOverride ?? "latexmk.exe", $"-pdf -interaction=nonstopmode -silent \"{fileName}\""),
+            CompileEngine.XeLatex => (executableOverride ?? "xelatex.exe", $"-interaction=nonstopmode \"{fileName}\""),
+            CompileEngine.PdfLatex => (executableOverride ?? "pdflatex.exe", $"-interaction=nonstopmode \"{fileName}\""),
             _ => throw new ArgumentOutOfRangeException(nameof(engine))
         };
 
-        return new ProcessStartInfo
+        exe = NormalizeEnginePath(exe);
+
+        var psi = new ProcessStartInfo
         {
             FileName = exe,
             Arguments = args,
             WorkingDirectory = workDir,
             UseShellExecute = false,
+            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            ErrorDialog = false,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
+
+        psi.Environment["MIKTEX_DISABLE_MAINTENANCE"] = "1";
+        psi.Environment["MIKTEX_AUTOINSTALL"] = "0";
+        return psi;
+    }
+
+    public static string NormalizeEnginePath(string exe)
+    {
+        if (string.IsNullOrWhiteSpace(exe))
+            return exe;
+
+        exe = exe.Trim().Trim('"');
+        if (exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) ||
+            exe.EndsWith(".bat", StringComparison.OrdinalIgnoreCase))
+        {
+            var sibling = Path.ChangeExtension(exe, ".exe");
+            if (File.Exists(sibling))
+                return sibling;
+        }
+
+        if (!exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+            !exe.Contains(Path.DirectorySeparatorChar) &&
+            !exe.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return exe + ".exe";
+        }
+
+        return exe;
     }
 
     public async Task<CompileResult> CompileAsync(
@@ -48,13 +81,23 @@ public sealed class CompileService
         AppSettings settings,
         CancellationToken ct = default)
     {
-        var exe = engine switch
+        var configured = engine switch
         {
             CompileEngine.LatexMk => settings.LatexMkPath,
             CompileEngine.XeLatex => settings.XeLatexPath,
             CompileEngine.PdfLatex => settings.PdfLatexPath,
             _ => null
         };
+
+        var exe = string.IsNullOrWhiteSpace(configured)
+            ? engine switch
+            {
+                CompileEngine.LatexMk => EngineLocator.FindExecutable("latexmk.exe", "latexmk"),
+                CompileEngine.XeLatex => EngineLocator.FindExecutable("xelatex.exe", "xelatex"),
+                CompileEngine.PdfLatex => EngineLocator.FindExecutable("pdflatex.exe", "pdflatex"),
+                _ => null
+            }
+            : configured;
 
         ProcessStartInfo psi;
         try

@@ -108,7 +108,7 @@ public partial class WorkspaceView : UserControl
         }
     }
 
-    private void CompileLogBox_TargetUpdated(object? sender, System.Windows.Data.DataTransferEventArgs e)
+    public void CompileLogBox_TargetUpdated(object? sender, System.Windows.Data.DataTransferEventArgs e)
     {
         if (e.Property == TextBox.TextProperty)
             ScrollCompileLogToError();
@@ -157,7 +157,7 @@ public partial class WorkspaceView : UserControl
         }
     }
 
-    private void LibraryTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    public void LibraryTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
         if (Vm == null) return;
         Vm.Library.SelectedNode = e.NewValue as LibraryNode;
@@ -169,30 +169,30 @@ public partial class WorkspaceView : UserControl
         }
     }
 
-    private void LibraryTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    public void LibraryTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         Vm?.OpenSelectedNodeCommand.Execute(null);
     }
 
-    private void CloseTabButton_Click(object sender, RoutedEventArgs e)
+    public void CloseTabButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: DocumentTab tab })
             Vm?.Editor.CloseTab(tab);
         e.Handled = true;
     }
 
-    private void CompileStatus_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    public void CompileStatus_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         Vm?.Compile.ToggleLogCommand.Execute(null);
     }
 
-    private void LibraryTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    public void LibraryTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragStart = e.GetPosition(null);
         _dragNode = FindNode(e.OriginalSource as DependencyObject);
     }
 
-    private void LibraryTree_PreviewMouseMove(object sender, MouseEventArgs e)
+    public void LibraryTree_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed || _dragNode == null)
             return;
@@ -206,7 +206,7 @@ public partial class WorkspaceView : UserControl
         _dragNode = null;
     }
 
-    private void LibraryTree_DragOver(object sender, DragEventArgs e)
+    public void LibraryTree_DragOver(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(typeof(LibraryNode))
             ? DragDropEffects.Move
@@ -214,7 +214,7 @@ public partial class WorkspaceView : UserControl
         e.Handled = true;
     }
 
-    private void LibraryTree_Drop(object sender, DragEventArgs e)
+    public void LibraryTree_Drop(object sender, DragEventArgs e)
     {
         if (Vm == null) return;
         if (e.Data.GetData(typeof(LibraryNode)) is not LibraryNode source)
@@ -263,7 +263,7 @@ public partial class WorkspaceView : UserControl
         return null;
     }
 
-    private void PreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    public void PreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (Vm == null) return;
         if (Keyboard.Modifiers != ModifierKeys.Control)
