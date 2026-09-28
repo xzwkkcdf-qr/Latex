@@ -312,8 +312,10 @@
                          AcceptsReturn="True"
                          VerticalScrollBarVisibility="Auto"
                          HorizontalScrollBarVisibility="Auto"
-                         Text="{Binding Compile.LastLog, Mode=OneWay}"
-                         CaretIndex="{Binding Compile.LogCaretIndex, Mode=OneWay}"/>
+                         x:Name="CompileLogBox"
+                         Text="{Binding Compile.LastLog, Mode=OneWay, NotifyOnTargetUpdated=True}"
+                         CaretIndex="{Binding Compile.LogCaretIndex, Mode=OneWay}"
+                         TargetUpdated="CompileLogBox_TargetUpdated"/>
             </Grid>
         </Border>
 

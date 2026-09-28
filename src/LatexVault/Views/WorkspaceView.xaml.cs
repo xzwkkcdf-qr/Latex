@@ -30,6 +30,7 @@ public partial class WorkspaceView : UserControl
         {
             _subscribedVm.Preview.PropertyChanged -= Preview_PropertyChanged;
             _subscribedVm.PropertyChanged -= Shell_PropertyChanged;
+            _subscribedVm.Compile.PropertyChanged -= Compile_PropertyChanged;
             _subscribedVm = null;
         }
 
@@ -38,6 +39,7 @@ public partial class WorkspaceView : UserControl
             _subscribedVm = vm;
             vm.Preview.PropertyChanged += Preview_PropertyChanged;
             vm.PropertyChanged += Shell_PropertyChanged;
+            vm.Compile.PropertyChanged += Compile_PropertyChanged;
             ApplyPreviewColumn();
             ApplyLibraryColumn();
         }
@@ -66,6 +68,41 @@ public partial class WorkspaceView : UserControl
             Vm.LibraryPaneWidth = LibraryCol.Width.Value;
         if (Vm.Preview.IsVisible && PreviewCol.Width.IsAbsolute && PreviewCol.Width.Value > 40)
             Vm.PreviewPaneWidth = PreviewCol.Width.Value;
+    }
+
+    private void Compile_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CompileViewModel.LastLog)
+            or nameof(CompileViewModel.LogCaretIndex)
+            or nameof(CompileViewModel.IsLogOpen)
+            or null)
+        {
+            Dispatcher.BeginInvoke(ScrollCompileLogToError, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
+    private void CompileLogBox_TargetUpdated(object? sender, System.Windows.Data.DataTransferEventArgs e)
+    {
+        if (e.Property == TextBox.TextProperty)
+            ScrollCompileLogToError();
+    }
+
+    private void ScrollCompileLogToError()
+    {
+        if (Vm == null || CompileLogBox == null) return;
+        var text = CompileLogBox.Text ?? "";
+        if (text.Length == 0) return;
+        var idx = Math.Clamp(Vm.Compile.LogCaretIndex, 0, text.Length);
+        CompileLogBox.CaretIndex = idx;
+        try
+        {
+            var line = CompileLogBox.GetLineIndexFromCharacterIndex(idx);
+            CompileLogBox.ScrollToLine(line);
+        }
+        catch
+        {
+            // Ignore layout timing issues.
+        }
     }
     private void ApplyLibraryColumn()
     {
