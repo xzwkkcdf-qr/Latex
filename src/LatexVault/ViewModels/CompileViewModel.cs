@@ -37,11 +37,24 @@ public partial class CompileViewModel : ObservableObject
         Func<AppSettings> getSettings,
         Action? onCompiled = null)
     {
+        if (_editor != null)
+            _editor.PropertyChanged -= Editor_PropertyChanged;
+
         _editor = editor;
         _preview = preview;
         _getSettings = getSettings;
         _onCompiled = onCompiled;
+        _editor.PropertyChanged += Editor_PropertyChanged;
+        CompileCommand.NotifyCanExecuteChanged();
     }
+
+    private void Editor_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(EditorTabsViewModel.SelectedTab) or null)
+            CompileCommand.NotifyCanExecuteChanged();
+    }
+
+    private int _compileGeneration;
 
     [RelayCommand(CanExecute = nameof(CanCompile))]
     private async Task CompileAsync()
@@ -65,17 +78,23 @@ public partial class CompileViewModel : ObservableObject
         var settings = _getSettings();
         settings.DefaultEngine = SelectedEngine;
 
+        // Re-click cancels the in-flight compile and starts a new one.
+        if (IsCompiling)
+            _compile.CancelRunning();
+
+        var gen = ++_compileGeneration;
         IsCompiling = true;
         StatusText = "Compiling…";
+        // Keep last good PDF pages; only hint updates until LoadPdf succeeds.
         if (_preview != null)
-        {
-            _preview.Clear();
             _preview.Hint = "Compiling…";
-        }
 
         try
         {
             var result = await _compile.CompileAsync(SelectedEngine, tab.FilePath, settings);
+            if (gen != _compileGeneration)
+                return;
+
             LastLog = result.Log ?? "";
             LogCaretIndex = FirstErrorOffset(LastLog);
 
@@ -98,14 +117,17 @@ public partial class CompileViewModel : ObservableObject
         }
         finally
         {
-            IsCompiling = false;
-            CompileCommand.NotifyCanExecuteChanged();
+            if (gen == _compileGeneration)
+            {
+                IsCompiling = false;
+                CompileCommand.NotifyCanExecuteChanged();
+            }
         }
     }
 
-    private bool CanCompile() => !IsCompiling;
-
-    partial void OnIsCompilingChanged(bool value) => CompileCommand.NotifyCanExecuteChanged();
+    private bool CanCompile() =>
+        _editor?.SelectedTab != null &&
+        !string.IsNullOrWhiteSpace(_editor.SelectedTab.FilePath);
 
     [RelayCommand]
     private void ToggleLog() => IsLogOpen = !IsLogOpen;

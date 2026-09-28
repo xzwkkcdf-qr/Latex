@@ -208,7 +208,8 @@ public partial class WorkspaceView : UserControl
         if (string.Equals(Path.GetDirectoryName(source.FullPath), destDir, StringComparison.OrdinalIgnoreCase))
             return;
 
-        if (!Vm.Library.TryMove(source.FullPath, destDir, out var error))
+        var oldPath = source.FullPath;
+        if (!Vm.Library.TryMove(oldPath, destDir, out var error))
         {
             if (!string.IsNullOrEmpty(error) &&
                 error.Contains("subfolder", StringComparison.OrdinalIgnoreCase))
@@ -218,6 +219,8 @@ public partial class WorkspaceView : UserControl
             return;
         }
 
+        var newPath = Path.Combine(destDir, Path.GetFileName(oldPath));
+        Vm.Editor.RemapPath(oldPath, newPath);
         Vm.ReportStatus("Moved " + source.Name);
         e.Handled = true;
     }

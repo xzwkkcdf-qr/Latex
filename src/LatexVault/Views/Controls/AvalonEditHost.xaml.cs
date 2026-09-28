@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using ICSharpCode.AvalonEdit.Search;
 
 namespace LatexVault.Views.Controls;
 
@@ -15,6 +16,7 @@ public partial class AvalonEditHost : UserControl
     {
         InitializeComponent();
         LoadTexHighlighting();
+        SearchPanel.Install(Editor);
         Editor.TextChanged += Editor_TextChanged;
     }
 

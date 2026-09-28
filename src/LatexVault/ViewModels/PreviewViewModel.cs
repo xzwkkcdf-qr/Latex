@@ -30,19 +30,19 @@ public partial class PreviewViewModel : ObservableObject
     public async Task LoadPdf(string pdfPath)
     {
         var gen = ++_loadGeneration;
-        await Application.Current.Dispatcher.InvokeAsync(() =>
-        {
-            Pages.Clear();
-            IsEmpty = true;
-        });
 
         if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
         {
             if (gen != _loadGeneration) return;
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                // Leave any previous good pages intact.
                 IsLoading = false;
-                Hint = "No preview — compile to refresh";
+                if (Pages.Count == 0)
+                {
+                    IsEmpty = true;
+                    Hint = "No preview — compile to refresh";
+                }
             });
             return;
         }
@@ -61,6 +61,8 @@ public partial class PreviewViewModel : ObservableObject
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (gen != _loadGeneration) return;
+                // Replace pages only after a successful render.
+                Pages.Clear();
                 foreach (var page in pages)
                     Pages.Add(page);
                 IsEmpty = Pages.Count == 0;
@@ -74,8 +76,8 @@ public partial class PreviewViewModel : ObservableObject
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (gen != _loadGeneration) return;
-                Pages.Clear();
-                IsEmpty = true;
+                // Keep last good pages on render failure.
+                IsEmpty = Pages.Count == 0;
                 Hint = "Preview failed: " + ex.Message;
                 IsLoading = false;
             });
