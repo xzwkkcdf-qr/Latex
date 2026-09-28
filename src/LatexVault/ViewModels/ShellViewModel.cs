@@ -56,7 +56,7 @@ public partial class ShellViewModel : ObservableObject
     [RelayCommand]
     private void Save()
     {
-        Editor.SaveSelected();
+        Editor.SaveActive();
         PersistLayout();
     }
 
@@ -71,7 +71,7 @@ public partial class ShellViewModel : ObservableObject
         }
 
         if (tab.IsDirty)
-            Editor.SaveSelected();
+            Editor.SaveActive();
 
         Settings.DefaultEngine = Compile.SelectedEngine;
         var result = await Compile.CompileAsync(tab.FilePath, Settings);
