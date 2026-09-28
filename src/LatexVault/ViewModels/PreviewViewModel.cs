@@ -15,6 +15,7 @@ public partial class PreviewViewModel : ObservableObject
     private int _loadGeneration;
     private string? _lastPdfPath;
     private readonly DispatcherTimer _zoomRenderTimer;
+    private int _lastRenderDpi;
 
     [ObservableProperty] private bool _isVisible = true;
     [ObservableProperty] private bool _isLoading;
@@ -27,25 +28,23 @@ public partial class PreviewViewModel : ObservableObject
     public ObservableCollection<BitmapSource> Pages { get; } = new();
     public bool HasPages => Pages.Count > 0;
 
-    /// <summary>PDF points → pixels at 100% zoom (96 DIP/inch screen).</summary>
     public const int BaseRenderDpi = 96;
 
     public PreviewViewModel()
     {
         Pages.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPages));
-        _zoomRenderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        _zoomRenderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         _zoomRenderTimer.Tick += async (_, _) =>
         {
             _zoomRenderTimer.Stop();
             if (!string.IsNullOrWhiteSpace(_lastPdfPath))
-                await LoadPdf(_lastPdfPath, keepZoom: true).ConfigureAwait(true);
+                await ReloadAtCurrentZoomAsync().ConfigureAwait(true);
         };
     }
 
     partial void OnZoomChanged(double value)
     {
         ZoomText = $"{Math.Round(value * 100)}%";
-        // Re-render at higher DPI after wheel/button settle — do not bitmap-stretch.
         if (!string.IsNullOrWhiteSpace(_lastPdfPath))
         {
             _zoomRenderTimer.Stop();
@@ -58,15 +57,21 @@ public partial class PreviewViewModel : ObservableObject
         _zoomRenderTimer.Stop();
         _loadGeneration++;
         _lastPdfPath = null;
+        _lastRenderDpi = 0;
         Pages.Clear();
         IsEmpty = true;
         IsLoading = false;
         Hint = "No preview — compile to refresh";
     }
 
-    public Task LoadPdf(string pdfPath) => LoadPdf(pdfPath, keepZoom: false);
+    public Task LoadPdf(string pdfPath) => LoadPdfCore(pdfPath, force: true);
 
-    public async Task LoadPdf(string pdfPath, bool keepZoom)
+    private Task ReloadAtCurrentZoomAsync() =>
+        string.IsNullOrWhiteSpace(_lastPdfPath)
+            ? Task.CompletedTask
+            : LoadPdfCore(_lastPdfPath!, force: false);
+
+    private async Task LoadPdfCore(string pdfPath, bool force)
     {
         var gen = ++_loadGeneration;
         if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
@@ -84,8 +89,18 @@ public partial class PreviewViewModel : ObservableObject
             return;
         }
 
+        var ppd = 1.0;
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            ppd = PdfPreviewService.GetPixelsPerDip();
+        });
+
         var zoom = Zoom;
-        var dpi = PdfPreviewService.DpiForZoom(zoom, BaseRenderDpi);
+        var renderDpi = PdfPreviewService.RenderDpi(zoom, ppd, BaseRenderDpi);
+        var bitmapDpi = PdfPreviewService.BitmapDpi(ppd, BaseRenderDpi);
+
+        if (!force && renderDpi == _lastRenderDpi && Pages.Count > 0)
+            return;
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
@@ -96,7 +111,8 @@ public partial class PreviewViewModel : ObservableObject
 
         try
         {
-            var pages = await Task.Run(() => _preview.RenderPages(pdfPath, dpi)).ConfigureAwait(false);
+            var pages = await Task.Run(() =>
+                _preview.RenderPages(pdfPath, renderDpi, bitmapDpi)).ConfigureAwait(false);
             if (gen != _loadGeneration) return;
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -105,9 +121,11 @@ public partial class PreviewViewModel : ObservableObject
                 foreach (var page in pages)
                     Pages.Add(page);
                 _lastPdfPath = pdfPath;
+                _lastRenderDpi = renderDpi;
                 IsEmpty = Pages.Count == 0;
                 Hint = IsEmpty ? "Empty PDF" : "";
                 IsLoading = false;
+                StatusMessage = $"{Math.Round(zoom * 100)}% · {renderDpi} DPI · {pages.Count}p";
             });
         }
         catch (Exception ex)
@@ -143,7 +161,7 @@ public partial class PreviewViewModel : ObservableObject
                 ? "page"
                 : Path.GetFileNameWithoutExtension(_lastPdfPath);
             PdfExportService.ExportPagesSeparately(pages, dlg.FolderName, baseName);
-            StatusMessage = $"Exported {pages.Count} page(s)";
+            StatusMessage = $"Exported {pages.Count} page image(s).";
         }
         catch (Exception ex)
         {
@@ -155,19 +173,24 @@ public partial class PreviewViewModel : ObservableObject
     private async Task ExportVerticalAsync()
     {
         if (Pages.Count == 0) return;
+        var baseName = string.IsNullOrWhiteSpace(_lastPdfPath)
+            ? "preview-strip"
+            : Path.GetFileNameWithoutExtension(_lastPdfPath) + "-strip";
         var dlg = new SaveFileDialog
         {
-            Title = "Export vertical strip",
-            Filter = "PNG image|*.png",
-            FileName = "preview-strip.png"
+            Title = "Export vertical stitch PNG",
+            Filter = "PNG image (*.png)|*.png",
+            FileName = baseName + ".png",
+            AddExtension = true,
+            DefaultExt = ".png"
         };
         if (dlg.ShowDialog() != true) return;
         try
         {
-            StatusMessage = "Exporting strip…";
+            StatusMessage = "Stitching pages…";
             var pages = await GetExportPagesAsync().ConfigureAwait(true);
-            PdfExportService.ExportVerticalStrip(pages, dlg.FileName);
-            StatusMessage = "Exported vertical strip";
+            await Task.Run(() => PdfExportService.ExportVerticalStrip(pages, dlg.FileName));
+            StatusMessage = "Exported vertical strip.";
         }
         catch (Exception ex)
         {
@@ -181,14 +204,12 @@ public partial class PreviewViewModel : ObservableObject
         {
             try
             {
-                return await Task.Run(() => _preview.RenderPages(_lastPdfPath!, dpi: 200));
+                var ppd = PdfPreviewService.GetPixelsPerDip();
+                return await Task.Run(() =>
+                    _preview.RenderPages(_lastPdfPath!, renderDpi: 200, bitmapDpi: 96));
             }
-            catch
-            {
-                // fall through to on-screen pages
-            }
+            catch { }
         }
-
         return Pages.ToList();
     }
 
